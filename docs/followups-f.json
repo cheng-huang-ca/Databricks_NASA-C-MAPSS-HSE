@@ -1,0 +1,61 @@
+{
+  "milestone": "Small follow-ups (task F): retrain refreshes the dashboard marts, pull-request validation, branch protection, billing access",
+  "recorded": "2026-09-25",
+  "analytics_in_retrain": {
+    "bug_fixed": "jobs/refresh_analytics.py read resources.genie_spaces, but the CI/CD milestone (a69ba02) moved the space under targets.dev; the next refresh would have failed at its Genie checks. It now takes --target ${bundle.target} (sentinelops.analytics.genie_spaces).",
+    "design": "task analytics = run_job_task of analytics_refresh, depends on monitor, beside alerts (a breach can't leave the marts stale; a failed dashboard check can't suppress an alert). Job timeout 5400 -> 6300 s.",
+    "dev_run": {
+      "job": "cmapss_retrain (1037945637149770)",
+      "run_id": 248147539009900,
+      "result": "SUCCESS",
+      "utc": "06:39:29-07:09:32",
+      "minutes": 30.0,
+      "tasks": {
+        "ingest": {"run_id": 740513243280780, "minutes": 11.3},
+        "verify": {"run_id": 1116227002130815, "minutes": 8.0, "note": "passed (4th verified run); now includes a same-day billing snapshot"},
+        "train": {"run_id": 820838684149094, "retrained": false, "reason": "Gold training inputs unchanged", "digests": {"features": "efdbf289f866a12d", "training_labels": "bd98d8c49e59152c"}},
+        "promote": {"run_id": 649248734869540, "evaluated": false, "reason": "no @challenger"},
+        "score": {"run_id": 1004480145003904, "pending_rows": 0, "logged_rows_for_version": 13096},
+        "monitor": {"run_id": 361873310315511, "endpoint_rmse": 18.341479192292436, "age_matched_drift_over_0_2": 0},
+        "alerts": {"run_id": 581778910436795, "checks": 47, "breaches": 0, "utc": "07:01:08-07:03:42"},
+        "analytics": {
+          "run_id": 332788866578079, "utc": "07:01:08-07:09:32",
+          "child_run": {"job": "analytics_refresh (847239470140874)", "run_id": 129586591044115, "trigger": "RUN_JOB_TASK",
+                        "setup_minutes": 3.4, "execution_minutes": 4.9},
+          "report": {
+            "genie_spaces": ["sentinelops_operations"],
+            "cmapss_fleet_status": {"rows": 100, "champion_version": 3, "risk_bands": {"healthy": 71, "critical": 15, "warning": 14}},
+            "osha_injury_facts": {"rows": 105993},
+            "query_checks": "7 dashboard datasets and 6 Genie example queries, all ran"
+          }
+        }
+      },
+      "cost": "about CAD 0.4-0.6 of serverless (estimate; system.billing can price the run by job_run_id once posted)"
+    }
+  },
+  "pull_request_validation": {
+    "pull_request": "https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1",
+    "first_run": {"run_id": 36104608730, "unit_tests": "success",
+                  "validate": "staging --strict passed as the staging principal (pull_request federation subject); prod --strict failed",
+                  "cause": "as the staging principal, prod's root_path resolves to that principal's own folder, whose CAN_MANAGE prod's permissions don't list: a warning, fatal in strict mode"},
+    "fix": "pull requests validate prod without --strict; the prod job still validates strictly as the prod principal; tests/test_cicd.py pins the steps",
+    "second_run": {"run_id": 36104902332, "unit_tests": "123 passed", "validate": "success"}
+  },
+  "branch_protection": {"branch": "main", "required_status_checks": ["Unit tests"], "enforcement_level": "non_admins",
+                        "force_pushes": false, "deletions": false},
+  "billing_access": {
+    "finding": "the auto-provisioned metastore had no metastore admin (owner: the system identity that created it), so no one could grant on system.billing",
+    "changes": ["account group sentinelops-metastore-admins (152211826237897) created with the user as its only member",
+                "metastore 233d4693-562b-446d-882c-03c1412965a1 owner -> sentinelops-metastore-admins",
+                "USE_SCHEMA + SELECT on system.billing granted to the user (USE CATALOG on system already came from account users)"],
+    "check": {"run_id": 839204309723200, "result": "SUCCESS", "latest_usage_end_utc": "2026-09-25 03:00", "queried_at_utc": "2026-09-25 06:47", "lag_hours": 3.8},
+    "september_24_dbus": {"jobs_and_pipelines": 7.32, "sql": 4.87, "model_serving_and_ai_gateway": 31.45, "genie_free": 7.0},
+    "unexplained": "PREDICTIVE_OPTIMIZATION DBUs: 0.40 (Sep 23), 0.15 (Sep 24), 0.33 (Sep 25 to 03:00), although the SentinelOps catalogs have it off"
+  },
+  "workspace_cleanup": {"deleted": ["sentinelops-scratch/diagnose_ai_query.py", "sentinelops-scratch/diagnose_embedding.py"],
+                        "added": ["sentinelops-scratch/billing_check.py (the one-off billing query)",
+                                  "sentinelops-scratch/po_check.py (predictive optimization billing rows, run 621385307062519: usage_metadata empty, run_as a Databricks-managed identity; 0.40/0.15/0.88 DBU on Sep 23/24/25 to 09:00 UTC)"]},
+  "costs": {"september_24_posted_cad": 14.14, "posted_at_utc": "2026-09-25 14:25",
+            "september_25_event_hubs_by_14_35_utc": {"Standard Ingress Events": 0.0005, "Service Bus Standard Messaging Operations": 0.0,
+                                                     "Standard Kafka Endpoint": "not posted", "Standard Throughput Unit": "not posted"}}
+}

@@ -1,12 +1,12 @@
 # Build status
 
-Last verified: September 25, 2026, 05:50 UTC (environments and CI/CD: staging and prod deployed by GitHub Actions).
+Last verified: September 25, 2026, 07:15 UTC (small follow-ups: the analytics refresh inside `cmapss_retrain`, pull-request validation, branch protection, `system.billing` access).
 
 **At a glance.**
 
-- **Progress:** 33 of 40 tracked tasks are done. The rest are optional (agent
-  deployment, ML depth, `system.billing` access, Lakehouse Monitoring) or last
-  (the demo script and write-up); 5 are not started and 2 are deferred.
+- **Progress:** 34 of 40 tracked tasks are done. The rest are optional (agent
+  deployment, ML depth, Lakehouse Monitoring) or last (the demo script and
+  write-up); 4 are not started and 2 are deferred.
 - **Environments:** `dev` (developer), `staging` and `prod` (each deployed and
   run by its own service principal through GitHub Actions with Databricks
   OIDC, no secrets). Staging ingests and verifies C-MAPSS on every deploying
@@ -16,13 +16,14 @@ Last verified: September 25, 2026, 05:50 UTC (environments and CI/CD: staging an
   endpoints, and all pipelines IDLE. The starter warehouse is STOPPED
   (2X-Small, 5-minute auto-stop). `@champion` is v3 (READY).
 - **Local tooling:** Windows Application Control started blocking
-  `.venv\Scripts\python.exe` on September 25 (~05:00 UTC). Tests and Python
-  scripts can't run locally until you allow it; CI on GitHub runs them.
-- **Cost:** September 24 closed at a projected ~CAD 14.5 (CAD 11.65 posted by
-  02:05 UTC on September 25). September 25 so far: the fixed ~1.7/day, the
-  Event Hubs demo (≤ CAD 0.35 of Event Hubs, ~0.3 of serverless) and the CI
-  runs (~0.3 of serverless). All against your credits, which expire October
-  10. See "Cost and runtime controls".
+  `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
+  06:26 UTC. Tests and Python scripts can't run locally until you allow it;
+  CI on GitHub runs them.
+- **Cost:** September 24 closed at **CAD 14.14** (near final), as
+  `system.billing` predicted. September 25: CAD 1.78 posted by 14:25 UTC,
+  projected ≈ 3–3.5. Event Hubs has billed only ingress events (CAD 0.0005)
+  so far; no Kafka-endpoint charge yet. All against your credits, which
+  expire October 10. See "Cost and runtime controls".
 - **Git:** every milestone is committed on `main` and pushed to the public
   repository https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE.
 
@@ -41,7 +42,7 @@ cost or prerequisites, with the reason given.
 | Bundle deployment (dev target, strict validation, manual jobs) | Done | `databricks.yml`, `resources/*.yml`; 16 jobs, 4 pipelines, 2 dashboards and 1 Genie space deployed; a test enforces job guardrails, including no serverless auto-retries |
 | Cost visibility: meter-level Azure cost query | Done | Found an always-on NAT gateway/IP, ~CAD 1.7/day ("Cost and runtime controls") |
 | Azure budget alert | Done | Budget `sentinelops-dev-monthly` (your choice): CAD 150/month on both SentinelOps resource groups; emails at 50/80/100% of actual and 100% of forecast; `infra/budget.json`. A tripwire (alerts lag 8–24 h), not a cutoff |
-| Databricks billing tables (`system.billing`) access | Not started | Needs an account/metastore admin grant |
+| Databricks billing tables (`system.billing`) access | Done | The auto-provisioned metastore had no metastore admin; the account group `sentinelops-metastore-admins` (you, the only member) now is (your approval). You hold `USE SCHEMA` + `SELECT` on `system.billing`. A one-off query (run `839204309723200`) read usage ~3.8 h behind real time, vs ~9 h for Azure Cost Management |
 | dev/staging/prod catalogs, service principals, `run_as` | Done | Catalogs `sentinelops_staging`/`sentinelops_prod` (bound to this workspace), principals `sentinelops-staging-ci`/`sentinelops-prod-ci` (plain users, `ALL PRIVILEGES` on their own catalog only), production-mode bundle targets with `run_as`; each principal created its target's 16 jobs, 4 pipelines and schemas. [CICD.md](CICD.md), `cicd-first-run.json` |
 | Secrets in Key Vault or a secret scope | Done (demo) | Databricks-backed scope `sentinelops-eventhubs` held the Event Hubs listen key, read by the pipeline with `dbutils.secrets.get`; the send key never left the producer's process. Deleted with the namespace |
 | Private Link / VNet hardening | Deferred | Cost and complexity; public endpoints use authenticated access only |
@@ -91,9 +92,9 @@ cost or prerequisites, with the reason given.
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (122) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Unit tests (123) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
 | Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
-| GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json` |
+| GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json`. Pull-request path proven by PR #1 (run `36104902332`: tests, then validation as the staging principal via the `pull_request` subject) |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
@@ -103,7 +104,43 @@ deployment and small follow-ups, in any order → demo script and write-up
 (last). The budget alert, dashboards/Genie, serving demo, eval v2, masking v2,
 REST API ingestion, the Event Hubs demo and CI/CD are done.
 
-## Current milestone: environments and CI/CD
+## Current milestone: small follow-ups (task F)
+
+Your choices (September 25): the analytics refresh inside retraining,
+placed beside the alerts; the change through a pull request; branch
+protection; `system.billing` access through a metastore admin group; and
+deleting the two scratch diagnostics. Evidence:
+[followups-f.json](followups-f.json).
+
+- **A latent bug, fixed.** `analytics_refresh` looked for the Genie space in
+  `resources`, but the CI/CD milestone moved it under `targets.dev`, so the
+  next refresh would have failed at its Genie checks. It now takes
+  `--target ${bundle.target}`; a unit test covers the lookup.
+- **`cmapss_retrain` refreshes the dashboard marts.** Its new `analytics`
+  task runs the `analytics_refresh` job after `monitor`, beside `alerts`.
+  Dev run `248147539009900`: **SUCCESS in 30 min**.
+  - Unchanged data: `train` skipped (same digests), no `@challenger`, 0
+    pending rows, endpoint RMSE 18.3415 again, 47 alert checks with 0
+    breaches.
+  - `analytics` started `analytics_refresh` run `129586591044115` in
+    parallel with `alerts`. It found the Genie space, ran all 7 dashboard
+    datasets and 6 Genie example queries, and rebuilt `cmapss_fleet_status`
+    for champion v3 (100 engines: 71 healthy, 14 warning, 15 critical).
+  - About CAD 0.4–0.6 of serverless.
+  - Staging and prod have no OSHA data, so `analytics` would fail there; CI
+    never runs `cmapss_retrain` in either.
+- **Pull-request path, first run.** PR #1 exercised the `pull_request`
+  federation subject. Run `36104608730` passed tests and staging's strict
+  validation, then failed prod's: as the staging principal, prod's root path
+  is that principal's own folder, whose permissions prod doesn't list. Pull
+  requests now validate prod without `--strict` (the prod job still validates
+  strictly as prod); run `36104902332` passed with 123 tests.
+- **Branch protection:** `main` requires `Unit tests`, for non-admins only.
+- **Billing access:** see the task table and "Cost and runtime controls".
+  `verify` in this run recorded a same-day billing snapshot for the first
+  time.
+
+## Earlier milestone: environments and CI/CD
 
 Staging and prod targets, each deployed and run by its own service principal
 from GitHub Actions, with no stored secrets. Details: [CICD.md](CICD.md);
@@ -153,6 +190,10 @@ evidence [cicd-first-run.json](cicd-first-run.json).
   - Prod redeployed after your approval (06:18–06:19 UTC), a no-op because
     the configuration was unchanged.
   - ≈ CAD 0.25 of serverless.
+- **Manual rerun `36102190326`** (*Run workflow* on the same commit): the
+  same result. Ingest `87485400787907` (7.4 min) appended nothing, with every
+  Silver and Gold table `NO_OP`; verify `215185864273674` (7.3 min) passed
+  with the same counts; prod redeployed after your approval (06:37 UTC).
 - **What the first attempts exposed (all fixed and tested):**
   1. **Subject and audience.** GitHub's OIDC subject embeds immutable owner
      and repository IDs, and the CLI requests the token for the workspace
@@ -904,7 +945,8 @@ section is kept only so older links still resolve.
   |---|---|---|---|
   | September 23 | CAD 5.41 (final) | Serverless SQL 2.16, serverless jobs 1.85, NAT and IP 1.31 (19 h) | The projection of CAD 3–4 missed a Catalog Explorer browse at 19:23 UTC, which ran the Small warehouse for about 11 minutes (2.2 DBU) |
   | September 24 | CAD 11.65 by 02:05 UTC on September 25 (usage to ~17:00) | At 11.65 (`infra/cost-query-meters.json`): serverless jobs 3.17, serverless SQL 4.37, serverless real-time inference 2.57 (pay-per-token model calls plus the serving demo), NAT and IP 1.48. At the 8.05 posted by 16:55 UTC: serverless jobs 2.60, serverless SQL 2.42 (Catalog Explorer, 05:44), model calls 2.23, NAT and IP 0.76 | Projected ≈ CAD 13.4: the fixed remainder (~0.9), dashboards/Genie (~1.6), the serving demo and eval v2 (~2.0: serving ≤0.35, jobs ~0.5, model calls ~0.4, warehouse checks ~0.7), then masking v2 (~0.8). Over CAD 10; you approved it against credits expiring October 10. Then the weather backfill (21:51–23:50 UTC, ~CAD 0.7–1.1), so ≈ CAD 14.5. CAD 8.86 had posted by 23:55 UTC and 11.65 by 02:05 UTC on September 25. The Cost Management API returns 429 in bursts, so recheck later |
-  | September 25 | Not posted yet at 03:21 UTC | — | Projected ≈ CAD 2.5–3: the fixed ~1.7, the Event Hubs demo (namespace 02:23–03:06 UTC, ≤ 0.35 at the worst-case rate with the Kafka meter; ~0.3 of serverless). Confirm the Event Hubs meters (throughput unit, Kafka endpoint) once posted |
+  | September 24 (recheck) | **CAD 14.14** by 14:25 UTC on September 25 (near final) | Serverless jobs 4.57, serverless SQL 4.72, serverless real-time inference 3.05, NAT gateway 1.56, public IP 0.17, storage and bandwidth 0.07 | Matches the ≈ CAD 14.1 that `system.billing` DBUs predicted, and the ≈ 14.5 projection. Over the CAD 10 guide, as you approved against the credits. (13.42 had posted by 06:27 UTC) |
+  | September 25 | CAD 1.78 by 14:25 UTC (not final) | Serverless jobs 1.06 (to ~05:00), NAT gateway 0.57, public IP 0.06, Event Hubs "Standard Ingress Events" 0.0005, Service Bus messaging 0.00 | Projected ≈ CAD 3–3.5: the fixed ~1.7, the Event Hubs demo, three CI runs and the PR's merge (~0.3–0.5 of serverless each), the dev retrain (~0.4–0.6), predictive optimization (~0.5). **Kafka meter:** no "Standard Kafka Endpoint" charge had posted by 14:35 UTC, but neither had the throughput-unit charge, so recheck both before calling it |
 
 - **Rates** (Azure Retail Prices, `westus2`, CAD):
   - serverless jobs CAD 0.62/DBU (about 1.5 DBU per hour of job time);
@@ -921,9 +963,25 @@ section is kept only so older links still resolve.
 - **Compute controls:** no classic clusters, no recurring job schedules, and
   no persistent serving or Vector Search endpoints. Every job is manual, with
   timeouts and zero retries.
-- **Visibility gap:** `system.billing` is inaccessible to this user, so there
-  is no near-real-time usage view. An account or metastore admin granting read
-  access would fix that.
+- **Same-day usage view:** since September 25 you can read `system.billing`
+  (granted through the new metastore admin group). Its usage lagged about 3.8
+  hours, against about 9 for Azure Cost Management, and it reports DBUs per
+  product (jobs, pipelines, SQL, serving, AI Gateway, predictive
+  optimization). `cmapss_verify` and `cmapss_retrain`'s `verify` task add a
+  same-day billing snapshot when run as you; the CI principals have no access.
+  - Cross-check for September 24 (DBUs up to 00:00 UTC on the 25th, at the
+    CAD rates above): jobs and pipelines 7.33 DBU ≈ 4.54, SQL 4.87 ≈ 4.72,
+    serving and AI Gateway 31.45 ≈ 3.05, plus NAT and IP ~1.72, ≈ **CAD
+    14.1** in total. Azure had posted 13.42.
+  - It also shows **predictive optimization** DBUs: 0.40, 0.15 and 0.88
+    (September 25 to 09:00 UTC, ≈ CAD 0.55) on September 23, 24 and 25,
+    rising with the number of pipelines. The three SentinelOps catalogs have
+    it off; the metastore default is on, inherited by the workspace default
+    catalog (`dbw_sentinelops_dev`, no tables) and presumably by
+    `__databricks_internal`, where pipelines keep internal state tables. The
+    billing rows carry no table (`usage_metadata` is empty; `run_as` is a
+    Databricks-managed identity). Tracing it per table needs read access to
+    `system.storage.predictive_optimization_operations_history` (ask first).
 
 The local benchmark demonstrates predictive performance on simulated engines.
 It is not evidence of reduced real-world downtime or an operational safety system.

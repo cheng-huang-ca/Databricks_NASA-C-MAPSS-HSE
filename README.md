@@ -93,7 +93,7 @@ this timeout reduces exposure but is not a hard billing cap.
    - delayed-label performance and age-matched drift monitoring;
    - the manual job `cmapss_retrain`, which chains ingest → verify → train
      (only when Gold training data changed) → promote → score → monitor →
-     threshold alerts;
+     threshold alerts, and refreshes the dashboard marts beside the alerts;
    - a bounded real-time serving demo: champion v3 on a scale-to-zero
      endpoint. All 13,096 fleet rows came back bit-identical to the batch
      predictions (single-row p50 81 ms), and an inference table logged every

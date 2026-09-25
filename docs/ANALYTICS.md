@@ -47,8 +47,8 @@ dashboards and to ask Genie questions.
 
 ## Analytics marts (`analytics_refresh`)
 
-`jobs/refresh_analytics.py` (manual; run after `osha_ingest` or
-`cmapss_retrain`):
+`jobs/refresh_analytics.py` (manual after `osha_ingest`; `cmapss_retrain` runs
+it as its `analytics` task, so the fleet mart follows every promotion):
 
 - **`gold.osha_injury_facts`**: one row per OSHA report with harmonized
   categories: event, injury type (nature), body part and source. It reuses

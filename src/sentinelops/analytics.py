@@ -235,3 +235,11 @@ def widget_columns(dashboard: dict) -> dict[str, set[str]]:
 
 def dataset_sql(dataset: dict) -> str:
     return "".join(dataset["queryLines"]) if "queryLines" in dataset else dataset["query"]
+
+
+def genie_spaces(config: dict, target: str) -> dict:
+    """Genie spaces a bundle target deploys, from a resources file: shared ones plus the target's own
+    (the space is dev-only, under `targets.dev`)."""
+    shared = (config.get("resources") or {}).get("genie_spaces") or {}
+    own = (((config.get("targets") or {}).get(target) or {}).get("resources") or {}).get("genie_spaces") or {}
+    return {**shared, **own}

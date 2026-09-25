@@ -2,7 +2,8 @@ resources:
   jobs:
     # Manual only; no SQL warehouse. Rebuilds gold.osha_injury_facts and gold.cmapss_fleet_status,
     # applies the column comments Genie reads, then runs every dashboard dataset and Genie example
-    # query on serverless job compute. Run after osha_ingest or cmapss_retrain.
+    # query on serverless job compute. cmapss_retrain runs it after monitoring; run it by hand after
+    # osha_ingest. It needs the OSHA Gold tables, which only dev has.
     analytics_refresh:
       name: sentinelops-analytics-refresh
       max_concurrent_runs: 1
@@ -26,6 +27,8 @@ resources:
               - test
               - --bundle-root
               - ${workspace.file_path}
+              - --target
+              - ${bundle.target}
               - --job-run-id
               - '{{job.run_id}}'
               - --source-root

@@ -132,6 +132,15 @@ def test_bundle_dashboards_use_the_lookup_warehouse_and_viewer_credentials():
     assert config["variables"]["warehouse_id"]["lookup"] == {"warehouse": "Serverless Starter Warehouse"}
 
 
+def test_refresh_checks_the_genie_spaces_of_its_own_target():
+    # The space moved under targets.dev with the staging/prod targets; the refresh job must follow it.
+    config = yaml.safe_load((ROOT / "resources" / "analytics.yml").read_text())
+    assert list(a.genie_spaces(config, "dev")) == ["sentinelops_operations"]
+    assert a.genie_spaces(config, "staging") == a.genie_spaces(config, "prod") == {}
+    parameters = RESOURCES["jobs"]["analytics_refresh"]["tasks"][0]["spark_python_task"]["parameters"]
+    assert parameters[parameters.index("--target") + 1] == "${bundle.target}"
+
+
 def test_genie_space_follows_the_serialized_format_and_uses_curated_tables():
     # Dev-only: the space needs its tables, which only dev has (resources/analytics.yml).
     (space,) = yaml.safe_load((ROOT / "resources" / "analytics.yml").read_text())["targets"]["dev"]["resources"]["genie_spaces"].values()
