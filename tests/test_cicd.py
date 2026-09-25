@@ -74,6 +74,9 @@ def test_workflow_pins_actions_and_limits_oidc_tokens():
         else:
             assert job["permissions"] == {"contents": "read", "id-token": "write"}, name
     assert set(TRIGGERS) == {"pull_request", "push", "workflow_dispatch"} and TRIGGERS["push"]["branches"] == ["main"]
+    # Only documentation may skip CI; code, config and data contracts always run.
+    ignored = TRIGGERS["push"]["paths-ignore"]
+    assert ignored == TRIGGERS["pull_request"]["paths-ignore"] == ["docs/**", "*.md", "**/*.md"]
     assert WORKFLOW["concurrency"]["cancel-in-progress"] is False
 
 

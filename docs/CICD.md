@@ -68,7 +68,16 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
 |---|---|
 | Pull request | Unit tests → `bundle validate --strict` for staging and prod |
 | Push to `main` | Unit tests → deploy staging, land C-MAPSS, ingest, verify → **wait for approval** → deploy prod |
-| Manual (`workflow_dispatch`) on `main` | Same as a push |
+| Manual (`workflow_dispatch`) on `main` | Same as a push; optionally allows a destructive staging deploy (below) |
+| Only `docs/**` or Markdown changed | Nothing runs (`paths-ignore`) |
+
+- **Destructive deploys are opt-in.** If a change would delete or recreate schemas or volumes,
+  `bundle deploy` refuses without `--auto-approve`. The **allow_staging_recreate** checkbox
+  on a manual run (default off) passes it to the staging deploy only. Pushes can't set it, and
+  prod never uses it. Read the refused plan in the failed run first.
+- **Reading staging or prod data as a human.** The principals own their schemas. Owning the
+  catalog lets the developer *grant* access, not read, so grant yourself `USE SCHEMA` and
+  `SELECT` when needed.
 
 - **Pinned actions:** every action is pinned to a commit SHA (checkout v7.0.1, setup-python
   v7.0.0, cache v6.1.0, Databricks setup-cli v1.17.0, the same CLI version as local
@@ -80,12 +89,27 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
   - They must exist **before** the first push. A job that names a missing environment creates it
     with no protection.
 
+## First successful run
+
+Run `36098067567` (manual, `allow_staging_recreate` ticked once): all 122 tests passed.
+
+- **Staging**, deployed as `sentinelops-staging-ci` in 18.5 minutes:
+  - It created 16 jobs, 4 pipelines, the schemas and the landing volume, recreating four empty
+    schemas an earlier misconfiguration had misnamed.
+  - It landed C-MAPSS. `cmapss_ingest` (run `459623161285845`, 8.7 min) and `cmapss_verify`
+    (run `104076494798937`, 8.0 min) both succeeded.
+- **Prod** was deployed as `sentinelops-prod-ci` after the required reviewer approved.
+
+The failed attempts before it are recorded in `cicd-first-run.json`: the OIDC subject and
+audience, CI-only strict warnings, a schema-renaming name prefix, the destructive-deploy guard,
+and the GitHub account changes.
+
 ## Costs
 
 - **GitHub Actions:** free for public repositories.
 - **Deploys:** free.
-- **Staging ingest and verify:** about 20–30 minutes of serverless job time per push to `main`
-  (≈ CAD 0.3–0.5). It's the main recurring cost, so push to `main` deliberately.
+- **Staging ingest and verify:** about 17–30 minutes of serverless job time per code push to
+  `main` (≈ CAD 0.3–0.5). It's the main recurring cost; docs-only pushes skip it.
 
 ## Commands used for setup (account admin, run once)
 
@@ -95,7 +119,7 @@ $env:ARM_TENANT_ID='<tenant id>'; $env:DATABRICKS_HOST='https://accounts.azureda
 $env:DATABRICKS_ACCOUNT_ID='5b731cd2-ed03-4635-963e-154fc8b4f034'; $env:DATABRICKS_AUTH_TYPE='azure-cli'
 databricks account service-principals create --display-name sentinelops-staging-ci --active
 databricks account workspace-assignment update 7405619144539463 <principal id> --json '{"permissions": ["USER"]}'
-databricks account service-principal-federation-policy create <principal id> --json '{"oidc_policy": {"issuer": "https://token.actions.githubusercontent.com", "audiences": ["5b731cd2-ed03-4635-963e-154fc8b4f034"], "subject": "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:staging"}}'
+databricks account service-principal-federation-policy create <principal id> --json '{"oidc_policy": {"issuer": "https://token.actions.githubusercontent.com", "audiences": ["https://adb-7405619144539463.3.azuredatabricks.net/oidc/v1/token", "5b731cd2-ed03-4635-963e-154fc8b4f034"], "subject": "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:staging"}}'
 # Workspace: entitlements (SCIM patch), catalogs and grants, warehouse CAN_USE:
 .venv/Scripts/python.exe scripts/setup_environment_catalogs.py
 databricks permissions update warehouses <warehouse id> --json '{"access_control_list": [{"service_principal_name": "<application id>", "permission_level": "CAN_USE"}]}'

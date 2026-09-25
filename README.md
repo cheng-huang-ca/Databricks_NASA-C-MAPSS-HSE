@@ -1,5 +1,7 @@
 # SentinelOps
 
+[![CI/CD](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/workflows/ci.yml/badge.svg)](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/workflows/ci.yml)
+
 Predictive maintenance and industrial safety analytics on Azure Databricks.
 The full brief is in [SentinelOps.md](SentinelOps.md). This implementation starts
 with FD001, as the brief recommends; the full cloud/RAG platform is not complete.
@@ -161,7 +163,16 @@ this timeout reduces exposure but is not a hard billing cap.
      with the secret scope.
 
    See [docs/INGESTION.md](docs/INGESTION.md#streaming-ingestion-event-hubs-kafka-endpoint-bounded-demo).
-7. Add OIDC staging/production CI/CD.
+7. Environments and CI/CD. Done:
+   - **Targets.** `staging` and `prod` bundle targets are each deployed and run by their own
+     service principal, with `ALL PRIVILEGES` on their own catalog only.
+   - **Pipeline.** GitHub Actions authenticates with Databricks OIDC federation, so no secrets
+     exist anywhere. Pull requests run the tests and validate the bundle. Pushes to `main` run
+     the tests, deploy staging, land and verify C-MAPSS there as the staging principal, then
+     deploy prod after a required reviewer approves.
+   - **Safety.** Destructive deploys need an explicit manual opt-in.
+
+   See [docs/CICD.md](docs/CICD.md).
 
 Dataset provenance: NASA PCoE, [Zenodo record 15346912](https://zenodo.org/records/15346912),
 DOI 10.5281/zenodo.15346912, archive MD5 `79a22f36e80606c69d0e9e4da5bb2b7a`.

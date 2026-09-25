@@ -1,0 +1,73 @@
+{
+  "milestone": "Environments and CI/CD (GitHub Actions, Databricks OIDC federation)",
+  "recorded": "2026-09-25",
+  "repository": "https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE (public; owner id 333634208, repository id 1386801570)",
+  "identities": {
+    "sentinelops-staging-ci": {
+      "application_id": "02bece01-ccd7-4130-8e8d-c8de43583e41",
+      "principal_id": 142143185210622,
+      "workspace_permission": "USER",
+      "entitlements": ["workspace-access", "databricks-sql-access"],
+      "grants": {"catalog sentinelops_staging": "ALL_PRIVILEGES", "warehouse Serverless Starter Warehouse": "CAN_USE"},
+      "federation_subjects": [
+        "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:staging",
+        "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:pull_request"
+      ]
+    },
+    "sentinelops-prod-ci": {
+      "application_id": "5d729946-2748-48f4-9300-ba9a559bf93d",
+      "principal_id": 146142828771636,
+      "workspace_permission": "USER",
+      "entitlements": ["workspace-access", "databricks-sql-access"],
+      "grants": {"catalog sentinelops_prod": "ALL_PRIVILEGES", "warehouse Serverless Starter Warehouse": "CAN_USE"},
+      "federation_subjects": [
+        "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:prod"
+      ]
+    },
+    "federation_policy_common": {
+      "issuer": "https://token.actions.githubusercontent.com",
+      "audiences": ["https://adb-7405619144539463.3.azuredatabricks.net/oidc/v1/token", "5b731cd2-ed03-4635-963e-154fc8b4f034"]
+    }
+  },
+  "catalogs": {
+    "sentinelops_staging": {"storage_root": "abfss://metastore@stsent7s5fwynthfd64.dfs.core.windows.net/staging", "isolation": "ISOLATED, bound to workspace 7405619144539463", "predictive_optimization": "DISABLE", "owner": "cheng.huang.ca@outlook.com"},
+    "sentinelops_prod": {"storage_root": "abfss://metastore@stsent7s5fwynthfd64.dfs.core.windows.net/prod", "isolation": "ISOLATED, bound to workspace 7405619144539463", "predictive_optimization": "DISABLE", "owner": "cheng.huang.ca@outlook.com"}
+  },
+  "github_environments": {
+    "staging": {"deployment_branches": ["main"]},
+    "prod": {"deployment_branches": ["main"], "required_reviewers": ["cheng-huang-ca"], "prevent_self_review": false}
+  },
+  "first_successful_run": {
+    "run_id": 36098067567,
+    "event": "workflow_dispatch (allow_staging_recreate: true, to replace four empty misnamed schemas and the empty landing volume)",
+    "head_sha": "d9b5e48",
+    "conclusion": "success",
+    "jobs": {
+      "Unit tests": {"result": "success", "utc": "05:19:26-05:20:46", "tests": 122},
+      "Validate bundle (staging, prod)": {"result": "skipped (pull requests only)"},
+      "Deploy and test staging": {
+        "result": "success", "utc": "05:20:50-05:39:17", "identity": "sentinelops-staging-ci via github-oidc",
+        "steps": ["bundle validate --strict -t staging", "bundle deploy -t staging --auto-approve (recreated 4 schemas and 1 volume, all empty)",
+                  "python -m sentinelops.landing (MD5-verified NASA archive)", "scripts/upload_landing.py (overwrite=False)",
+                  "bundle run cmapss_ingest", "bundle run cmapss_verify"],
+        "databricks_runs": {
+          "cmapss_ingest": {"job_id": 487600401912875, "run_id": 459623161285845, "result": "SUCCESS", "minutes": 8.7},
+          "cmapss_verify": {"job_id": 44682370218953, "run_id": 104076494798937, "result": "SUCCESS", "minutes": 8.0}
+        }
+      },
+      "Deploy prod (after approval)": {"result": "success", "utc": "05:43:37-05:44:03", "identity": "sentinelops-prod-ci via github-oidc", "approved_by": "cheng-huang-ca"}
+    },
+    "inventory_after": {
+      "staging": "16 jobs created by sentinelops-staging-ci; schemas bronze, silver, gold, sentinelops; landing volume holds cmapss_ingest/v1",
+      "prod": "16 jobs created by sentinelops-prod-ci; schemas bronze, silver, gold, sentinelops owned by the prod principal; no data landed, nothing run",
+      "running": "no active job runs; starter warehouse STOPPED"
+    }
+  },
+  "failed_attempts_and_fixes": [
+    {"symptom": "github-oidc: TOKEN_SUBJECT_INVALID", "cause": "GitHub subjects carry immutable owner and repository IDs (repo:<owner>@<id>/<repo>@<id>:...), and the CLI requests the token for the workspace OIDC endpoint, not the account ID", "fix": "policies use the ID-pinned subjects and accept both audiences"},
+    {"symptom": "bundle validate --strict: 4 warnings only in CI", "cause": "sync.exclude patterns for git-ignored directories match nothing in a clean checkout; the principal's bundle folder grants it CAN_MANAGE, which the target didn't state", "fix": "excludes dropped (sync skips git-ignored files); each target lists its principal; a test requires every sync pattern to match a tracked file"},
+    {"symptom": "Schema sentinelops_staging.sentinelops does not exist", "cause": "a name_prefix preset also renamed Unity Catalog schemas (staging_bronze, ...)", "fix": "environment tags instead of a name prefix; a test keeps name_prefix out"},
+    {"symptom": "deployment requires destructive actions", "cause": "renaming back needed recreating the empty misnamed schemas and volume; the CLI refuses without --auto-approve", "fix": "a manual-only workflow_dispatch checkbox (default off, staging only) allowed it once"},
+    {"symptom": "Run workflow missing; push denied", "cause": "the browser and Git Credential Manager were signed in as other accounts; the first owner account was then deleted", "fix": "repository recreated under cheng-huang-ca; federation policies re-pointed to its IDs; repo-local credential username"}
+  ]
+}

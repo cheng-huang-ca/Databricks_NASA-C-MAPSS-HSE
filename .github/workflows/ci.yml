@@ -4,10 +4,20 @@ name: CI/CD
 # environment. Databricks access is OIDC only: GitHub's short-lived token is exchanged for a
 # Databricks token of that environment's service principal (federation policies on the
 # principals); no secrets exist. Third-party actions are pinned to commit SHAs.
+# Documentation-only changes don't deploy (a staging run ingests for ~20 minutes, and prod asks
+# for an approval).
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
   workflow_dispatch:
     inputs:
       allow_staging_recreate:

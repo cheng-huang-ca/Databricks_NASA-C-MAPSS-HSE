@@ -1,11 +1,12 @@
 # SentinelOps — handover for the next session
 
-Last updated: September 25, 2026, 03:21 UTC. Git `main` holds every milestone,
-one commit each (latest: `1db22df`, the Event Hubs demo). There is no remote;
-see section 6.
+Last updated: September 25, 2026, 05:55 UTC. Git `main` holds every milestone,
+one commit each, and is pushed to the **public** repository
+https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE, where GitHub
+Actions deploys staging and prod. See section 6.
 
 **Where things stand.** Both halves of the portfolio project run in Azure
-Databricks, and every job is manual, bounded and verified. 31 of the 40
+Databricks, and every job is manual, bounded and verified. 33 of the 40
 tracked tasks are done. The **Task status** table at the top of
 [docs/STATUS.md](docs/STATUS.md) is the authoritative tracker; update it as
 work lands.
@@ -49,13 +50,27 @@ work lands.
     0.
   - The listen key lived in a Databricks secret scope. The namespace existed
     for 43.5 minutes; it and the scope were deleted afterwards.
+- **Environments and CI/CD** ([docs/CICD.md](docs/CICD.md)):
+  - `dev` (you), `staging` and `prod`, each with its own catalog.
+  - Staging and prod are deployed and run by their own service principals from
+    GitHub Actions. Databricks OIDC federation means no secrets exist
+    anywhere.
+  - Pushes to `main` test, deploy staging, and land, ingest and verify C-MAPSS
+    there, then deploy prod after a required reviewer approves.
+  - First green run: `36098067567`.
 - **Cost guardrails:**
   - Azure budget `sentinelops-dev-monthly` (CAD 150/month, email alerts);
   - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop.
 
-**Next task:** environments and CI/CD (section 3, task C). It needs the
-user's choice of GitHub repository and visibility, plus catalogs, service
-principals and grants, which are permission changes.
+**Next task:** the user's choice among the optional tasks in section 3 (D agent
+deployment, E ML depth, F small follow-ups). G, the demo script and write-up,
+comes last.
+
+**Local tooling blocker (September 25):** Windows Application Control blocks
+`.venv\Scripts\python.exe` ("An Application Control policy has blocked this
+file"). The Databricks CLI, Azure CLI and git still run. Ask the user to allow
+the venv or rebuild it; never change that security setting yourself. Until
+then, tests run only in GitHub Actions.
 
 ## 1. Start here
 
@@ -74,7 +89,8 @@ principals and grants, which are permission changes.
 ```powershell
 . ./scripts/Use-SentinelOps.ps1
 az account show --query '{name:name,id:id,user:user.name}' -o json
-.venv/Scripts/python.exe -m pytest -q                      # expect 115 passed
+.venv/Scripts/python.exe -m pytest -q                      # expect 122 passed (if Windows allows the venv's Python)
+foreach ($t in 'dev','staging','prod') { .tools/databricks/databricks.exe bundle validate --strict -t $t }
 .tools/databricks/databricks.exe bundle validate --strict -t dev
 .tools/databricks/databricks.exe bundle plan -t dev        # expect only the 5 known no-op job "updates" (section 4)
 .tools/databricks/databricks.exe jobs list-runs --active-only -o json
@@ -93,8 +109,8 @@ az eventhubs namespace list --query "[].name" -o json      # expect [] (the demo
    - September 24 (UTC) was projected at about CAD 14.5: ~13.4 before the
      weather backfill, which added ~CAD 0.7–1.1. The user approved going
      over CAD 10 against Azure credits that expire **October 10, 2026**.
-   - September 25: the fixed ~1.7 plus the Event Hubs demo, ≤ CAD 0.35 of
-     Event Hubs and ~0.3 of serverless.
+   - September 25: the fixed ~1.7, the Event Hubs demo (≤ CAD 0.35 of Event
+     Hubs, ~0.3 of serverless), and the CI runs (~0.3 of serverless).
    - Record the posted figures for September 24 and 25 in STATUS ("Cost and
      runtime controls"). For the 25th, check whether the "Standard Kafka
      Endpoint" meter (CAD 0.1247/hour) billed on top of the throughput unit;
@@ -134,8 +150,21 @@ az rest --method post --url 'https://management.azure.com/subscriptions/b1026367
   - downloading files, creating billable or long-lived resources;
   - changing permissions, grants, principals or secrets;
   - deleting anything, or uploading to landing.
-- **Git:** commit only when the user asks. There is **no Git remote**; don't
-  create one or push without the user's choice of repository and visibility.
+- **Git and GitHub:**
+  - Commit only when the user asks.
+  - `origin` is the public repository, so everything pushed is published.
+    Scan for secrets and OSHA employer names before pushing new kinds of
+    content (see section 4).
+  - A push to `main` that touches anything but docs or Markdown runs staging:
+    deploy, then about 17–30 minutes of serverless ingest and verify
+    (≈ CAD 0.3–0.5). It also requests a prod approval. Add `[skip ci]` to a
+    commit that shouldn't deploy.
+  - Never tick `allow_staging_recreate` without the user's approval for the
+    specific deletions.
+- **CI identities:** don't widen the principals' grants or federation
+  policies, or add secrets to GitHub, without asking. Browser actions on
+  GitHub (approvals, manual runs) need the user signed in as
+  `cheng-huang-ca`. Never sign out or switch accounts yourself.
 - Don't modify the unrelated `rg-equity-silver-mlops` resources or the idle
   `kinesis_ingestion` pipeline. No credentials in the repo; use the existing
   Azure CLI login.
@@ -171,7 +200,7 @@ then run in the cloud. Finish with the checklist in section 7.
 |---|---|---|---|
 | A | REST API ingestion | Done (Open-Meteo weather) | About CAD 1 for the backfill; reruns make no API calls |
 | B | Event Hubs (Kafka endpoint) streaming demo | Done (bounded; namespace deleted) | ≤ CAD 0.35 of Event Hubs plus ~0.3 of serverless |
-| C | Environments and CI/CD (staging/prod, service principals, GitHub, OIDC) (**next**) | Yes: repository and visibility, catalogs, principals, grants | Mostly free |
+| C | Environments and CI/CD (staging/prod, service principals, GitHub, OIDC) | Done (run `36098067567`) | ≈ CAD 0.3–0.5 of serverless per deploying push (staging ingest and verify) |
 | D | Optional: agent deployment and review app | Yes: serving endpoint | Serving while scaled up, plus tokens |
 | E | Optional ML depth: FD002–FD004, tuning, `mlflow.evaluate`, sequence baseline, Lakehouse Monitoring | Landing upload (FD002–4); monitoring (billable) | Serverless minutes; monitoring has a 2× DBU multiplier |
 | F | Small follow-ups (below) | Varies | Cents |
@@ -215,30 +244,30 @@ repeat it for the demo script (G), with approval:
 Not done: feeding streamed events into Gold features or scoring. The stream
 stops at Silver, and verify proves its parity with the file path.
 
-### C. Environments and CI/CD (next)
+### C. Environments and CI/CD (done)
 
-- **Ask the user for:**
-  - the GitHub repository and visibility;
-  - staging and prod catalogs (for example `sentinelops_staging`,
-    `sentinelops_prod`) on the same metastore and storage;
-  - service principals for `run_as`;
-  - the grants. These are permission changes.
-- **Bundle:**
-  - add `staging` and `prod` targets (`mode: production`, `run_as`, catalog
-    variable, workspace root);
-  - everything already reads `${var.catalog}`: dashboards via
-    `dataset_catalog`, and the Genie space via inline YAML;
-  - `infra/serving-endpoint.json` hard-codes `sentinelops_dev`, so
-    parameterize it if serving moves.
-- **CI:** `.github/workflows/ci.yml` (pytest) has never run. Add `bundle
-  validate` and deploys with GitHub OIDC → Databricks workload identity
-  federation, with no long-lived tokens:
-  - pull request: test and validate;
-  - `main`: deploy to staging;
-  - tag or approval: deploy to prod.
-- **Data:** the staging and prod catalogs start empty. Decide with the user
-  whether to re-land data there, or keep staging and prod as deploy-only
-  proofs.
+The design, identities, grants, workflow and costs are in `docs/CICD.md`, and
+the evidence, including every failed attempt and its fix, is in
+`docs/cicd-first-run.json`.
+
+In short:
+- **Targets:** `staging` and `prod` (production mode), each with its own
+  catalog and a service principal that both deploys and runs it.
+- **Resources:** `resources/environments.yml` creates the schemas and the
+  landing volume. The Genie space stays dev-only.
+- **Workflow:** GitHub Actions authenticates with Databricks OIDC (federation
+  policies pin the repository's owner and repository IDs).
+
+Still open, optional:
+- **Serving endpoint:** `infra/serving-endpoint.json` hard-codes
+  `sentinelops_dev`. Parameterize it if serving should move to staging or
+  prod.
+- **Branch protection:** protect `main` (require the `Unit tests` check),
+  which is free for public repositories.
+- **Pull request validation:** it has never run. Open a pull request from a
+  branch to exercise the `pull_request` federation subject.
+- **Prod data:** prod stays deploy-only. Landing data there would be a new
+  decision (cost, the same upload path as staging).
 
 ### D. Optional: agent deployment and review app
 
@@ -349,6 +378,14 @@ The masking gap no longer blocks this; masking v2 is verified.
   - `scripts/eventhubs_demo.py`: `put-secret` and `produce`.
   - Pipeline `cmapss_stream` and job `cmapss_stream_ingest` (stream →
     verify); they only work while a namespace exists.
+- **CI/CD:**
+  - `.github/workflows/ci.yml`: tests, validate, staging deploy with ingest and
+    verify, then an approved prod deploy.
+  - `databricks.yml` targets `staging` and `prod`, plus
+    `resources/environments.yml`.
+  - `scripts/setup_environment_catalogs.py` (catalogs and grants) and
+    `scripts/upload_landing.py` (never-overwrite upload).
+  - `tests/test_cicd.py` pins the contract.
 - **Analytics:** `analytics_refresh` rebuilds `gold.osha_injury_facts` and
   `gold.cmapss_fleet_status`, adds comments for Genie, and runs every
   dashboard dataset and Genie example query. Edit
@@ -372,7 +409,7 @@ The masking gap no longer blocks this; masking v2 is verified.
 | `pipelines list-pipeline-events` lacks details | Use `databricks api get "/api/2.0/pipelines/<id>/events?max_results=250"`, then `scripts/pipeline_update_evidence.py` |
 | STANDARD jobs can wait 3–7 minutes for resources | Ingest runs take 11–12 of their 15 minutes; if one times out while waiting, rerun it before raising the limit |
 | Bundle dev mode forces development pipelines | Keep `targets.dev.presets.pipelines_development: false` |
-| Every deploy "updates" four jobs | `cmapss_ingest`, `osha_ingest`, `cmapss_retrain` and `weather_ingest` (every job with a pipeline task) resend identical settings (the API doesn't echo `disable_auto_optimization` on pipeline tasks); harmless. `bundle deploy --select <resource>` deploys one resource |
+| Every deploy "updates" five jobs | `cmapss_ingest`, `osha_ingest`, `cmapss_retrain`, `weather_ingest` and `cmapss_stream_ingest` (every job with a pipeline task) resend identical settings (the API doesn't echo `disable_auto_optimization` on pipeline tasks); harmless. `bundle deploy --select <resource>` deploys one resource |
 | Serverless tasks retried despite `max_retries: 0` | Serverless auto-optimization retries failed tasks. Every task sets `disable_auto_optimization: true`; `tests/test_bundle.py` enforces it |
 | If/else conditions need task values | Task values can only be set from notebooks, whose environment differs. `cmapss_retrain` uses self-deciding steps (`--only-if-changed`, `--only-pending`) |
 | Running one task of a job | `jobs run-now --json @file` with `"only": ["task"]`; other tasks show `DISABLED`, and a failure reads `INTERNAL_ERROR`/`FAILED` |
@@ -414,6 +451,14 @@ The masking gap no longer blocks this; masking v2 is verified.
 | `az resource list -g rg-sentinelops-dev` returned `[]` | Seen right after deleting the namespace, while the workspace, storage and connector existed. Check resources by ID (`az resource show --ids`) before concluding anything |
 | SDK warns "Failed to get token for subscription" | The azure-cli auth fallback; harmless. PowerShell 5.1 still shows it as a `NativeCommandError` |
 | Browser checks of the workspace | The in-app browser needs the user to sign in, and it can't save screenshots or zoom. Claude in Chrome was not connected on September 24 |
+| GitHub OIDC `TOKEN_SUBJECT_INVALID` | GitHub's subject embeds immutable IDs: `repo:<owner>@<owner id>/<repo>@<repo id>:environment:<env>` (IDs from `api.github.com/repos/<owner>/<repo>`). The CLI requests the token for the workspace endpoint `https://adb-…/oidc/v1/token`, not the account ID, so policies accept both audiences. Databricks' error message states the policy it would accept |
+| `bundle validate --strict` passes locally but fails in CI | A clean checkout lacks git-ignored directories, so sync patterns for them warn. Deploying as a principal, its bundle folder permission must be in `permissions`. Reproduce CI by validating a copy of only the tracked files (`git ls-files`) |
+| `presets.name_prefix` in a target with schema resources | It renames the UC schemas too (`staging_bronze`), breaking code that names schemas. Use `presets.tags` |
+| Deploy "requires destructive actions" | The CLI refuses to recreate schemas or volumes without `--auto-approve`, and that's correct. Use the manual `allow_staging_recreate` run only with the user's approval of the specific deletions |
+| Seeing CI logs | Step logs need a GitHub sign-in; anonymous API calls only get annotations. The user signs in to the in-app browser. The public API (60 requests/hour) is enough for watching run and job states |
+| GitHub actions as the wrong account | *Run workflow* and deployment approval need write access. Check `document.querySelector('meta[name="user-login"]').content` before assuming. Git Credential Manager may hold another account: set `git config --local credential.https://github.com.username cheng-huang-ca` and let the user sign in; never delete stored credentials |
+| Windows blocks `.venv\Scripts\python.exe` | Application Control, since September 25. The Databricks CLI, `az`, git and PowerShell still run: use the CLI directly and PowerShell `Invoke-RestMethod` for watchers. The user decides whether to allow the venv |
+| Catalog owner can't read the principals' schemas | Expected: ownership allows granting, not reading. Grant yourself `USE SCHEMA`/`SELECT` if inspection is needed |
 
 ## 5. Resources
 
@@ -449,6 +494,33 @@ the budget in `infra/budget.json`, and the demo endpoint in
 | pipeline `cmapss_stream` | `aab883b8-f23a-4ebc-a28f-9bd79f5c6747` | Event Hubs Kafka → Bronze/Silver; updates `1bbc4074…` (13,096), `25aa0112…` (rerun, 0) |
 | job `cmapss_stream_ingest` | `637313705889552` | Stream → verify: runs `568883254693144`, rerun `865371030010789`; needs a live namespace |
 | genie space `sentinelops_operations` | `01f1b8347de912dc8d94fcb07a9144ec` | 6 curated Gold tables |
+
+The IDs above are dev's. Staging and prod hold the same 16 jobs and 4
+pipelines (no Genie space), tagged `environment: staging|prod` and created by
+their principal. Staging's `cmapss_ingest` is `487600401912875` (run
+`459623161285845`) and its `cmapss_verify` is `44682370218953` (run
+`104076494798937`).
+
+**CI/CD resources** (details in `docs/CICD.md`):
+- **Service principals** (account-level, workspace `USER` with
+  `workspace-access` and `databricks-sql-access`, `CAN_USE` on the starter
+  warehouse):
+  - `sentinelops-staging-ci`: application ID
+    `02bece01-ccd7-4130-8e8d-c8de43583e41`, principal ID `142143185210622`;
+  - `sentinelops-prod-ci`: application ID
+    `5d729946-2748-48f4-9300-ba9a559bf93d`, principal ID `146142828771636`.
+- **Federation policies:** staging `1aea6748…` (environment:staging) and
+  `747f0c28…` (pull_request); prod `1bb5a0ec…` (environment:prod). Subjects
+  are `repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:…`.
+- **Catalogs** `sentinelops_staging` and `sentinelops_prod`: storage `.../staging`
+  and `.../prod`, isolated to this workspace, owned by the developer, with
+  `ALL PRIVILEGES` for their principal.
+- **GitHub:** repository `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`
+  (public). Environments `staging` (branch `main`) and `prod` (reviewer
+  `cheng-huang-ca`, branch `main`).
+- **Account:** Databricks account ID `5b731cd2-ed03-4635-963e-154fc8b4f034`
+  (the user is an account admin). For account commands, set `ARM_TENANT_ID`
+  to the tenant.
 
 - All jobs are manual, STANDARD, one concurrent run, zero retries (including
   serverless auto-optimization), with timeouts and no schedules.
@@ -501,11 +573,15 @@ the budget in `infra/budget.json`, and the demo endpoint in
   databricks-sdk 0.140.0, PyYAML 6.0.3. Keep local and cloud versions
   consistent.
 - **Git:** branch `main`, author Cheng Huang <cheng.huang.ca@outlook.com>
-  (repo-local config), no remote.
+  (repo-local config).
+  - `origin` is https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE
+    (public), and `credential.https://github.com.username` is set to
+    `cheng-huang-ca` in the repo's config.
   - Recent milestones: `b94c34a` dashboards/Genie/budget, `d8bfec0`
     serving, `9c1b93e` eval v2, `7a863dd` masking v2, `abbba3b` REST API
-    ingestion, `1db22df` Event Hubs demo.
-  - The CI workflow `.github/workflows/ci.yml` has never run.
+    ingestion, `1db22df` Event Hubs demo, `a69ba02`…`d9b5e48` CI/CD.
+  - GitHub Actions runs `.github/workflows/ci.yml`; the first green run is
+    `36098067567`.
 
 ## 7. Working agreement that has served well
 
@@ -527,6 +603,8 @@ the budget in `infra/budget.json`, and the demo endpoint in
   - a compute inventory, confirming nothing is left running (warehouse
     STOPPED, no custom endpoints);
   - a cost check;
-  - STATUS task table and at-a-glance, README and HANDOVER updates.
+  - STATUS task table and at-a-glance, README and HANDOVER updates;
+  - after a code push, a green CI run: tests, staging, then prod approved by
+    the user or left waiting.
 
   Then offer to commit.

@@ -1,24 +1,30 @@
 # Build status
 
-Last verified: September 25, 2026, 03:21 UTC (Event Hubs streaming demo, committed as `1db22df`; namespace deleted).
+Last verified: September 25, 2026, 05:50 UTC (environments and CI/CD: staging and prod deployed by GitHub Actions).
 
 **At a glance.**
 
-- **Progress:** 31 of 40 tracked tasks are done. Next is environments and
-  CI/CD (it needs your choice of GitHub repository and visibility, catalogs,
-  service principals and grants); 6 tasks are not started and 2 are deferred.
-- **Live state (read-only checks):** no Event Hubs namespace (deleted at
-  03:06 UTC), no secret scopes, no active job runs, no classic clusters, no
-  Vector Search or custom serving endpoints, and all pipelines IDLE. The
-  starter warehouse is STOPPED (2X-Small, 5-minute auto-stop). `@champion` is
-  v3 (READY).
+- **Progress:** 33 of 40 tracked tasks are done. The rest are optional (agent
+  deployment, ML depth, `system.billing` access, Lakehouse Monitoring) or last
+  (the demo script and write-up); 5 are not started and 2 are deferred.
+- **Environments:** `dev` (developer), `staging` and `prod` (each deployed and
+  run by its own service principal through GitHub Actions with Databricks
+  OIDC, no secrets). Staging ingests and verifies C-MAPSS on every deploying
+  push; prod is deploy-only behind a required reviewer. [CICD.md](CICD.md).
+- **Live state (read-only checks):** no active job runs, no classic clusters,
+  no Event Hubs namespace or secret scopes, no Vector Search or custom serving
+  endpoints, and all pipelines IDLE. The starter warehouse is STOPPED
+  (2X-Small, 5-minute auto-stop). `@champion` is v3 (READY).
+- **Local tooling:** Windows Application Control started blocking
+  `.venv\Scripts\python.exe` on September 25 (~05:00 UTC). Tests and Python
+  scripts can't run locally until you allow it; CI on GitHub runs them.
 - **Cost:** September 24 closed at a projected ~CAD 14.5 (CAD 11.65 posted by
-  02:05 UTC on September 25). September 25 so far: the fixed ~1.7/day, plus
-  the Event Hubs demo, ≤ CAD 0.35 of Event Hubs and ~0.3 of serverless. All
-  against your credits, which expire October 10. See "Cost and runtime
-  controls".
-- **Git:** every milestone is committed on `main` (latest `1db22df`, the Event
-  Hubs demo); there is no remote.
+  02:05 UTC on September 25). September 25 so far: the fixed ~1.7/day, the
+  Event Hubs demo (≤ CAD 0.35 of Event Hubs, ~0.3 of serverless) and the CI
+  runs (~0.3 of serverless). All against your credits, which expire October
+  10. See "Cost and runtime controls".
+- **Git:** every milestone is committed on `main` and pushed to the public
+  repository https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE.
 
 ## Task status
 
@@ -36,7 +42,7 @@ cost or prerequisites, with the reason given.
 | Cost visibility: meter-level Azure cost query | Done | Found an always-on NAT gateway/IP, ~CAD 1.7/day ("Cost and runtime controls") |
 | Azure budget alert | Done | Budget `sentinelops-dev-monthly` (your choice): CAD 150/month on both SentinelOps resource groups; emails at 50/80/100% of actual and 100% of forecast; `infra/budget.json`. A tripwire (alerts lag 8–24 h), not a cutoff |
 | Databricks billing tables (`system.billing`) access | Not started | Needs an account/metastore admin grant |
-| dev/staging/prod catalogs, service principals, `run_as` | In progress | Catalogs `sentinelops_staging`/`sentinelops_prod`, principals `sentinelops-staging-ci`/`sentinelops-prod-ci` (plain users, `ALL PRIVILEGES` on their own catalog only), bundle targets with `run_as`; [CICD.md](CICD.md). Awaiting the first CI deployment |
+| dev/staging/prod catalogs, service principals, `run_as` | Done | Catalogs `sentinelops_staging`/`sentinelops_prod` (bound to this workspace), principals `sentinelops-staging-ci`/`sentinelops-prod-ci` (plain users, `ALL PRIVILEGES` on their own catalog only), production-mode bundle targets with `run_as`; each principal created its target's 16 jobs, 4 pipelines and schemas. [CICD.md](CICD.md), `cicd-first-run.json` |
 | Secrets in Key Vault or a secret scope | Done (demo) | Databricks-backed scope `sentinelops-eventhubs` held the Event Hubs listen key, read by the pipeline with `dbutils.secrets.get`; the send key never left the producer's process. Deleted with the namespace |
 | Private Link / VNet hardening | Deferred | Cost and complexity; public endpoints use authenticated access only |
 
@@ -85,19 +91,88 @@ cost or prerequisites, with the reason given.
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (92) and local CI workflow file | Done (local) | `.github/workflows/ci.yml` has never run: no remote |
-| Git history | Done (local) | Branch `main`; no remote; one commit per milestone (`git log`) |
-| GitHub repository, CI runs, OIDC deployment to staging/prod | In progress | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`; Databricks OIDC federation policies (no secrets); workflow: tests → staging deploy + C-MAPSS ingest/verify → approved prod deploy. Awaiting the first run |
+| Unit tests (122) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
+| GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json` |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
 
-Recommended order (details in HANDOVER.md): environments and CI/CD →
-optional ML depth and agent deployment → demo script and write-up. The budget
-alert, dashboards/Genie, serving demo, eval v2, masking v2, REST API ingestion
-and the Event Hubs demo are done.
+Recommended order (details in HANDOVER.md): optional ML depth, agent
+deployment and small follow-ups, in any order → demo script and write-up
+(last). The budget alert, dashboards/Genie, serving demo, eval v2, masking v2,
+REST API ingestion, the Event Hubs demo and CI/CD are done.
 
-## Current milestone: Event Hubs streaming demo (bounded)
+## Current milestone: environments and CI/CD
+
+Staging and prod targets, each deployed and run by its own service principal
+from GitHub Actions, with no stored secrets. Details: [CICD.md](CICD.md);
+evidence [cicd-first-run.json](cicd-first-run.json).
+
+- **Your choices:**
+  - a public repository (now `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`);
+  - Databricks OIDC federation;
+  - C-MAPSS ingested in staging, prod deploy-only;
+  - approval of the service principals, catalogs, grants and federation
+    policies, and one recreate of empty misnamed schemas.
+- **Identity:**
+  - Principals `sentinelops-staging-ci` and `sentinelops-prod-ci` are plain
+    workspace users, with `ALL PRIVILEGES` only on their own catalog, and
+    `CAN_USE` on the warehouse.
+  - Federation policies accept only this repository's ID-pinned subjects:
+    `environment:staging`, `pull_request` and `environment:prod`.
+  - GitHub environments: staging deploys from `main` only; prod also needs a
+    required reviewer.
+- **Catalogs:** `sentinelops_staging` and `sentinelops_prod` use managed
+  storage under the existing external location, are bound to this workspace,
+  and have predictive optimization off. You own them, but you can't read the
+  principals' schemas without granting yourself access (least privilege).
+- **Workflow:**
+  - pull requests: tests, then validation;
+  - `main`: tests → deploy staging, land the MD5-verified C-MAPSS files
+    without overwriting, run `cmapss_ingest` and `cmapss_verify` → deploy prod
+    after approval;
+  - docs-only changes skip it;
+  - actions are pinned to commit SHAs, and only deploy jobs get
+    `id-token: write`.
+- **Run `36098067567` SUCCESS** (manual, recreate allowed once):
+  - 122 tests passed.
+  - Staging deployed as its principal in 18.5 min: 16 jobs, 4 pipelines,
+    4 schemas, the landing volume. Ingest `459623161285845` took 8.7 min and
+    verify `104076494798937` 8.0 min; verify asserts the benchmark's exact
+    counts and feature values.
+  - Prod deployed as its principal after your approval.
+  - Nothing is running afterwards.
+- **What the first attempts exposed (all fixed and tested):**
+  1. **Subject and audience.** GitHub's OIDC subject embeds immutable owner
+     and repository IDs, and the CLI requests the token for the workspace
+     endpoint, not the account ID.
+  2. **Strict validation in a clean checkout.** Sync patterns for git-ignored
+     directories match nothing there, and the principal's own folder
+     permission had to be stated.
+  3. **Name prefix.** A `name_prefix` preset also renamed the UC schemas, so
+     tags are used instead.
+  4. **Destructive-deploy guard.** Fixing the names meant recreating the empty
+     schemas, which the CLI rightly refused without `--auto-approve`. A
+     manual-only, staging-only checkbox allowed it once.
+  5. **Accounts.** The browser and Git Credential Manager were signed in as
+     other GitHub accounts, and the first owner account was deleted. The
+     repository was recreated and the federation policies were re-pointed.
+- **Cost:** serverless about 17 min for staging's ingest and verify, plus
+  deploys (≈ CAD 0.3). GitHub Actions is free for public repositories.
+- **Tests:** 122 (7 new, for CI/CD):
+  - one principal and catalog per environment;
+  - schemas before pipelines;
+  - pinned actions;
+  - OIDC permissions only on deploy jobs;
+  - prod waits for staging;
+  - the upload never overwrites;
+  - every sync pattern matches a tracked file;
+  - no name prefix;
+  - only a manual run can auto-approve;
+  - docs-only changes skip CI.
+
+## Earlier milestone: Event Hubs streaming demo (bounded)
 
 Events, the third ingestion style. C-MAPSS FD001 test trajectories were
 replayed from this machine into Azure Event Hubs and read back through its
