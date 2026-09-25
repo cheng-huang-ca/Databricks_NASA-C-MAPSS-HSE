@@ -63,6 +63,24 @@
       "running": "no active job runs; starter warehouse STOPPED"
     }
   },
+  "push_rerun": {
+    "run_id": 36100233863,
+    "event": "push (dd62000: first code push after the green run)",
+    "jobs": {
+      "Unit tests": {"result": "success", "utc": "05:50:15-05:51:22", "tests": 122},
+      "Deploy and test staging": {
+        "result": "success", "utc": "05:51:26-06:08:54",
+        "note": "Non-destructive deploy; the landing upload found every file identical; the ingest was a no-op",
+        "databricks_runs": {
+          "cmapss_ingest": {"run_id": 415902458418397, "result": "SUCCESS", "minutes": 7.1,
+                            "pipeline_update": "c0a65b0b… COMPLETED: bronze streams appended nothing; every Silver and Gold flow planned NO_OP"},
+          "cmapss_verify": {"run_id": 591333246681954, "result": "SUCCESS", "minutes": 9.0,
+                            "counts": {"gold.cmapss_features": 33727, "gold.cmapss_training_labels": 20631, "gold.cmapss_test_endpoints": 100}}
+        }
+      },
+      "Deploy prod (after approval)": {"result": "waiting for the required reviewer at 06:15 UTC (same configuration as the deployed prod, so approving is a no-op)"}
+    }
+  },
   "failed_attempts_and_fixes": [
     {"symptom": "github-oidc: TOKEN_SUBJECT_INVALID", "cause": "GitHub subjects carry immutable owner and repository IDs (repo:<owner>@<id>/<repo>@<id>:...), and the CLI requests the token for the workspace OIDC endpoint, not the account ID", "fix": "policies use the ID-pinned subjects and accept both audiences"},
     {"symptom": "bundle validate --strict: 4 warnings only in CI", "cause": "sync.exclude patterns for git-ignored directories match nothing in a clean checkout; the principal's bundle folder grants it CAN_MANAGE, which the target didn't state", "fix": "excludes dropped (sync skips git-ignored files); each target lists its principal; a test requires every sync pattern to match a tracked file"},

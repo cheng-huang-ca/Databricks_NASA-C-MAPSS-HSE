@@ -143,6 +143,16 @@ evidence [cicd-first-run.json](cicd-first-run.json).
     counts and feature values.
   - Prod deployed as its principal after your approval.
   - Nothing is running afterwards.
+- **Push rerun `36100233863`** (the first code push after the green run):
+  - 122 tests passed.
+  - Staging redeployed without destructive changes. The landing upload
+    found every file identical.
+  - Ingest `415902458418397` (7.1 min) appended nothing to Bronze and planned
+    every Silver and Gold table as `NO_OP`. Verify `591333246681954` (9.0
+    min) passed with the same counts.
+  - Its prod job was waiting for your approval at 06:15 UTC; the
+    configuration is unchanged, so approving is a no-op.
+  - ≈ CAD 0.25 of serverless.
 - **What the first attempts exposed (all fixed and tested):**
   1. **Subject and audience.** GitHub's OIDC subject embeds immutable owner
      and repository IDs, and the CLI requests the token for the workspace

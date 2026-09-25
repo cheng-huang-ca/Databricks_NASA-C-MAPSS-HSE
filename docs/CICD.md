@@ -100,6 +100,13 @@ Run `36098067567` (manual, `allow_staging_recreate` ticked once): all 122 tests 
     (run `104076494798937`, 8.0 min) both succeeded.
 - **Prod** was deployed as `sentinelops-prod-ci` after the required reviewer approved.
 
+The first code push after it (run `36100233863`) proved the pipeline is idempotent under the
+principal:
+- Staging redeployed with no destructive changes, and the upload found every file identical.
+- `cmapss_ingest` (`415902458418397`) appended nothing, with every Silver and Gold table planned
+  as `NO_OP`.
+- `cmapss_verify` (`591333246681954`) passed with the same counts.
+
 The failed attempts before it are recorded in `cicd-first-run.json`: the OIDC subject and
 audience, CI-only strict warnings, a schema-renaming name prefix, the destructive-deploy guard,
 and the GitHub account changes.
