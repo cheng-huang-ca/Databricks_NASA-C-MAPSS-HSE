@@ -1,9 +1,52 @@
 # SentinelOps — handover for the next session
 
-Last updated: September 25, 2026, 05:55 UTC. Git `main` holds every milestone,
-one commit each, and is pushed to the **public** repository
+Last updated: September 25, 2026, 06:40 UTC. Git `main` holds every milestone,
+one commit each (latest `11fd7cd`), and is pushed to the **public** repository
 https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE, where GitHub
 Actions deploys staging and prod. See section 6.
+
+## 0. First actions for the new session
+
+Do these before starting any task, in order. All are free and read-only
+except where marked.
+
+1. **Settle CI run #3** ([36102190326](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/runs/36102190326)).
+   - The user started it manually at 06:17 UTC on `dd62000` (unchanged
+     code). At 06:40 its staging job was running `cmapss_ingest` in
+     Databricks.
+   - Expect a no-op like run #2: identical uploads, nothing appended, verify
+     passes. Then it waits for prod approval.
+   - Check it with the public API (no token, 60 requests/hour):
+
+     ```powershell
+     (Invoke-RestMethod 'https://api.github.com/repos/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/runs/36102190326/jobs' -Headers @{'User-Agent'='sentinelops'}).jobs | ForEach-Object { "$($_.name): $($_.status) $($_.conclusion)" }
+     ```
+   - Approving or rejecting prod is **the user's** click, never yours. If it
+     succeeds, add one line to `docs/cicd-first-run.json` and STATUS. If it
+     failed, read the step log (the user must be signed in to GitHub in the
+     in-app browser as `cheng-huang-ca`).
+2. **Check the local Python.** Run `.venv/Scripts/python.exe -m pytest -q`
+   (expect 122 passed).
+   - If Windows still says "An Application Control policy has blocked this
+     file", tell the user. It's their setting to allow the venv, or they can
+     rebuild it with `uv`. Don't work around or change it.
+   - Until then, use the Databricks CLI, the Azure CLI, git and PowerShell
+     (`Invoke-RestMethod`, `ConvertFrom-Json`). Tests run in GitHub Actions on
+     every code push.
+3. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
+   no custom endpoints, no Event Hubs namespace, no secret scopes. Then the
+   posted-cost check.
+   - Record the final September 24 and 25 figures in STATUS ("Cost and
+     runtime controls").
+   - Use `infra/cost-query-meters.json` to see whether the "Standard Kafka
+     Endpoint" meter billed during the Event Hubs demo (02:23–03:06 UTC,
+     September 25).
+   - The credits expire **October 10, 2026**: finish billable work before
+     then.
+4. **Ask the user which remaining task to do next** (section 3: D agent
+   deployment, E ML depth, F small follow-ups, including the CI/CD
+   follow-ups under C; then G, the demo script and write-up, last). State
+   costs and approvals up front, as every milestone has.
 
 **Where things stand.** Both halves of the portfolio project run in Azure
 Databricks, and every job is manual, bounded and verified. 33 of the 40
@@ -56,21 +99,17 @@ work lands.
     GitHub Actions. Databricks OIDC federation means no secrets exist
     anywhere.
   - Pushes to `main` test, deploy staging, and land, ingest and verify C-MAPSS
-    there, then deploy prod after a required reviewer approves.
-  - First green run: `36098067567`.
+    there, then deploy prod after a required reviewer approves. Docs-only
+    pushes skip the workflow.
+  - First green run: `36098067567`. Push rerun `36100233863` was idempotent
+    under the principal (nothing appended, every table `NO_OP`).
 - **Cost guardrails:**
   - Azure budget `sentinelops-dev-monthly` (CAD 150/month, email alerts);
   - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop.
 
 **Next task:** the user's choice among the optional tasks in section 3 (D agent
 deployment, E ML depth, F small follow-ups). G, the demo script and write-up,
-comes last.
-
-**Local tooling blocker (September 25):** Windows Application Control blocks
-`.venv\Scripts\python.exe` ("An Application Control policy has blocked this
-file"). The Databricks CLI, Azure CLI and git still run. Ask the user to allow
-the venv or rebuild it; never change that security setting yourself. Until
-then, tests run only in GitHub Actions.
+comes last. Section 0 comes first.
 
 ## 1. Start here
 
