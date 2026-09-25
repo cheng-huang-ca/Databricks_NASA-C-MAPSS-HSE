@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -181,6 +182,6 @@ def test_agent_jobs_are_dev_only_and_serve_the_evaluated_configuration():
     assert params(jobs["osha_agent_deploy"])["--endpoint-name"] == params(jobs["osha_agent_eval"])["--endpoint-name"]
     assert "databricks-agents==1.12.0" in jobs["osha_agent_deploy"]["environments"][0]["spec"]["dependencies"]
     # agents.deploy's flag is `scale_to_zero`; it silently ignored `scale_to_zero_enabled` (run 1016924296649877).
-    deploy = (ROOT / "jobs" / "deploy_osha_agent.py").read_text()
-    assert "scale_to_zero=True" in deploy and "scale_to_zero_enabled=True" not in deploy
+    (call,) = re.findall(r"agents\.deploy\([^)]*\)", (ROOT / "jobs" / "deploy_osha_agent.py").read_text())
+    assert "scale_to_zero=True" in call and "scale_to_zero_enabled" not in call
     assert (ROOT / "src" / "sentinelops" / "agent_model.py").exists()
