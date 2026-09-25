@@ -78,7 +78,7 @@
                             "counts": {"gold.cmapss_features": 33727, "gold.cmapss_training_labels": 20631, "gold.cmapss_test_endpoints": 100}}
         }
       },
-      "Deploy prod (after approval)": {"result": "waiting for the required reviewer at 06:15 UTC (same configuration as the deployed prod, so approving is a no-op)"}
+      "Deploy prod (after approval)": {"result": "success", "utc": "06:18:34-06:19:02", "approved_by": "cheng-huang-ca", "note": "same configuration as the deployed prod: a no-op redeploy"}
     }
   },
   "failed_attempts_and_fixes": [

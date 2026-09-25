@@ -150,8 +150,8 @@ evidence [cicd-first-run.json](cicd-first-run.json).
   - Ingest `415902458418397` (7.1 min) appended nothing to Bronze and planned
     every Silver and Gold table as `NO_OP`. Verify `591333246681954` (9.0
     min) passed with the same counts.
-  - Its prod job was waiting for your approval at 06:15 UTC; the
-    configuration is unchanged, so approving is a no-op.
+  - Prod redeployed after your approval (06:18–06:19 UTC), a no-op because
+    the configuration was unchanged.
   - ≈ CAD 0.25 of serverless.
 - **What the first attempts exposed (all fixed and tested):**
   1. **Subject and audience.** GitHub's OIDC subject embeds immutable owner
