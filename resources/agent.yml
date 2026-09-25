@@ -1,0 +1,126 @@
+# The OSHA assistant as a deployed agent (Model Serving + Agent Framework). Dev-only: only dev has
+# the OSHA Gold tables. All manual: log (registers osha_assistant after a smoke test) -> deploy
+# (a billable scale-to-zero CPU endpoint with the Review App; delete it when the demo is over) ->
+# eval (the osha_answer_eval question sets against the endpoint, as a regression).
+targets:
+  dev:
+    resources:
+      jobs:
+        osha_agent_log:
+          name: sentinelops-osha-agent-log
+          max_concurrent_runs: 1
+          timeout_seconds: 1800
+          performance_target: STANDARD
+          tasks:
+            - task_key: log
+              max_retries: 0
+              disable_auto_optimization: true
+              timeout_seconds: 1800
+              spark_python_task:
+                python_file: ../jobs/log_osha_agent.py
+                parameters:
+                  - --catalog
+                  - ${var.catalog}
+                  - --schema
+                  - ${var.schema}
+                  - --embedding-endpoint
+                  - databricks-qwen3-embedding-0-6b
+                  - --chat-endpoint
+                  - databricks-gpt-oss-120b
+                  - --dimensions
+                  - '256'
+                  - --k
+                  - '8'
+                  - --max-tokens
+                  - '2048'
+                  - --reasoning-effort
+                  - low
+                  - --job-run-id
+                  - '{{job.run_id}}'
+                  - --source-root
+                  - ${workspace.file_path}/src
+              environment_key: agent
+          environments:
+            - environment_key: agent
+              spec:
+                environment_version: '4'
+                dependencies:
+                  - numpy==2.5.3
+                  - pandas==2.3.3
+                  - mlflow==3.16.1
+                  - databricks-sdk==0.140.0
+        osha_agent_deploy:
+          name: sentinelops-osha-agent-deploy
+          max_concurrent_runs: 1
+          timeout_seconds: 3000
+          performance_target: STANDARD
+          parameters:
+            - name: model_version
+              default: latest
+          tasks:
+            - task_key: deploy
+              max_retries: 0
+              disable_auto_optimization: true
+              timeout_seconds: 3000
+              spark_python_task:
+                python_file: ../jobs/deploy_osha_agent.py
+                parameters:
+                  - --catalog
+                  - ${var.catalog}
+                  - --schema
+                  - ${var.schema}
+                  - --model-version
+                  - '{{job.parameters.model_version}}'
+                  - --endpoint-name
+                  - sentinelops-osha-agent
+                  - --job-run-id
+                  - '{{job.run_id}}'
+                  - --source-root
+                  - ${workspace.file_path}/src
+              environment_key: deploy
+          environments:
+            - environment_key: deploy
+              spec:
+                environment_version: '4'
+                dependencies:
+                  - numpy==2.5.3
+                  - mlflow==3.16.1
+                  - databricks-sdk==0.140.0
+                  - databricks-agents==1.12.0
+        osha_agent_eval:
+          name: sentinelops-osha-agent-eval
+          max_concurrent_runs: 1
+          timeout_seconds: 3600
+          performance_target: STANDARD
+          tasks:
+            - task_key: evaluate
+              max_retries: 0
+              disable_auto_optimization: true
+              timeout_seconds: 3600
+              spark_python_task:
+                python_file: ../jobs/evaluate_agent_endpoint.py
+                parameters:
+                  - --catalog
+                  - ${var.catalog}
+                  - --endpoint-name
+                  - sentinelops-osha-agent
+                  - --judge-endpoint
+                  - databricks-meta-llama-3-3-70b-instruct
+                  - --workers
+                  - '2'
+                  - --question-sets
+                  - eval_v3_identity,eval_v2
+                  - --job-run-id
+                  - '{{job.run_id}}'
+                  - --source-root
+                  - ${workspace.file_path}/src
+              environment_key: evaluate
+          environments:
+            - environment_key: evaluate
+              spec:
+                environment_version: '4'
+                dependencies:
+                  - numpy==2.5.3
+                  - pandas==2.3.3
+                  - mlflow==3.16.1
+                  - databricks-sdk==0.140.0

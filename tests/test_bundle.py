@@ -6,8 +6,12 @@ RESOURCES = Path(__file__).resolve().parents[1] / "resources"
 
 
 def jobs():
+    """Every job, including target-only ones (the dev-only agent jobs)."""
     for path in sorted(RESOURCES.glob("*.yml")):
-        yield from (yaml.safe_load(path.read_text()) or {}).get("resources", {}).get("jobs", {}).items()
+        config = yaml.safe_load(path.read_text()) or {}
+        yield from (config.get("resources") or {}).get("jobs", {}).items()
+        for target in (config.get("targets") or {}).values():
+            yield from ((target or {}).get("resources") or {}).get("jobs", {}).items()
 
 
 def test_every_job_is_manual_standard_single_run_bounded_and_not_retried():
