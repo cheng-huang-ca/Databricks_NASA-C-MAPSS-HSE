@@ -1,12 +1,12 @@
 # Build status
 
-Last verified: September 25, 2026, 05:50 UTC (environments and CI/CD: staging and prod deployed by GitHub Actions).
+Last verified: September 25, 2026, 07:15 UTC (small follow-ups: the analytics refresh inside `cmapss_retrain`, pull-request validation, branch protection, `system.billing` access).
 
 **At a glance.**
 
-- **Progress:** 33 of 40 tracked tasks are done. The rest are optional (agent
-  deployment, ML depth, `system.billing` access, Lakehouse Monitoring) or last
-  (the demo script and write-up); 5 are not started and 2 are deferred.
+- **Progress:** 34 of 40 tracked tasks are done. The rest are optional (agent
+  deployment, ML depth, Lakehouse Monitoring) or last (the demo script and
+  write-up); 4 are not started and 2 are deferred.
 - **Environments:** `dev` (developer), `staging` and `prod` (each deployed and
   run by its own service principal through GitHub Actions with Databricks
   OIDC, no secrets). Staging ingests and verifies C-MAPSS on every deploying
@@ -43,7 +43,7 @@ cost or prerequisites, with the reason given.
 | Bundle deployment (dev target, strict validation, manual jobs) | Done | `databricks.yml`, `resources/*.yml`; 16 jobs, 4 pipelines, 2 dashboards and 1 Genie space deployed; a test enforces job guardrails, including no serverless auto-retries |
 | Cost visibility: meter-level Azure cost query | Done | Found an always-on NAT gateway/IP, ~CAD 1.7/day ("Cost and runtime controls") |
 | Azure budget alert | Done | Budget `sentinelops-dev-monthly` (your choice): CAD 150/month on both SentinelOps resource groups; emails at 50/80/100% of actual and 100% of forecast; `infra/budget.json`. A tripwire (alerts lag 8–24 h), not a cutoff |
-| Databricks billing tables (`system.billing`) access | Not started | Needs an account/metastore admin grant |
+| Databricks billing tables (`system.billing`) access | Done | The auto-provisioned metastore had no metastore admin; the account group `sentinelops-metastore-admins` (you, the only member) now is (your approval). You hold `USE SCHEMA` + `SELECT` on `system.billing`. A one-off query (run `839204309723200`) read usage ~3.8 h behind real time, vs ~9 h for Azure Cost Management |
 | dev/staging/prod catalogs, service principals, `run_as` | Done | Catalogs `sentinelops_staging`/`sentinelops_prod` (bound to this workspace), principals `sentinelops-staging-ci`/`sentinelops-prod-ci` (plain users, `ALL PRIVILEGES` on their own catalog only), production-mode bundle targets with `run_as`; each principal created its target's 16 jobs, 4 pipelines and schemas. [CICD.md](CICD.md), `cicd-first-run.json` |
 | Secrets in Key Vault or a secret scope | Done (demo) | Databricks-backed scope `sentinelops-eventhubs` held the Event Hubs listen key, read by the pipeline with `dbutils.secrets.get`; the send key never left the producer's process. Deleted with the namespace |
 | Private Link / VNet hardening | Deferred | Cost and complexity; public endpoints use authenticated access only |
@@ -93,9 +93,9 @@ cost or prerequisites, with the reason given.
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (122) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Unit tests (123) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
 | Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
-| GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json` |
+| GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json`. Pull-request path proven by PR #1 (run `36104902332`: tests, then validation as the staging principal via the `pull_request` subject) |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
@@ -105,7 +105,43 @@ deployment and small follow-ups, in any order → demo script and write-up
 (last). The budget alert, dashboards/Genie, serving demo, eval v2, masking v2,
 REST API ingestion, the Event Hubs demo and CI/CD are done.
 
-## Current milestone: environments and CI/CD
+## Current milestone: small follow-ups (task F)
+
+Your choices (September 25): the analytics refresh inside retraining,
+placed beside the alerts; the change through a pull request; branch
+protection; `system.billing` access through a metastore admin group; and
+deleting the two scratch diagnostics. Evidence:
+[followups-f.json](followups-f.json).
+
+- **A latent bug, fixed.** `analytics_refresh` looked for the Genie space in
+  `resources`, but the CI/CD milestone moved it under `targets.dev`, so the
+  next refresh would have failed at its Genie checks. It now takes
+  `--target ${bundle.target}`; a unit test covers the lookup.
+- **`cmapss_retrain` refreshes the dashboard marts.** Its new `analytics`
+  task runs the `analytics_refresh` job after `monitor`, beside `alerts`.
+  Dev run `248147539009900`: **SUCCESS in 30 min**.
+  - Unchanged data: `train` skipped (same digests), no `@challenger`, 0
+    pending rows, endpoint RMSE 18.3415 again, 47 alert checks with 0
+    breaches.
+  - `analytics` started `analytics_refresh` run `129586591044115` in
+    parallel with `alerts`. It found the Genie space, ran all 7 dashboard
+    datasets and 6 Genie example queries, and rebuilt `cmapss_fleet_status`
+    for champion v3 (100 engines: 71 healthy, 14 warning, 15 critical).
+  - About CAD 0.4–0.6 of serverless.
+  - Staging and prod have no OSHA data, so `analytics` would fail there; CI
+    never runs `cmapss_retrain` in either.
+- **Pull-request path, first run.** PR #1 exercised the `pull_request`
+  federation subject. Run `36104608730` passed tests and staging's strict
+  validation, then failed prod's: as the staging principal, prod's root path
+  is that principal's own folder, whose permissions prod doesn't list. Pull
+  requests now validate prod without `--strict` (the prod job still validates
+  strictly as prod); run `36104902332` passed with 123 tests.
+- **Branch protection:** `main` requires `Unit tests`, for non-admins only.
+- **Billing access:** see the task table and "Cost and runtime controls".
+  `verify` in this run recorded a same-day billing snapshot for the first
+  time.
+
+## Earlier milestone: environments and CI/CD
 
 Staging and prod targets, each deployed and run by its own service principal
 from GitHub Actions, with no stored secrets. Details: [CICD.md](CICD.md);
@@ -928,9 +964,19 @@ section is kept only so older links still resolve.
 - **Compute controls:** no classic clusters, no recurring job schedules, and
   no persistent serving or Vector Search endpoints. Every job is manual, with
   timeouts and zero retries.
-- **Visibility gap:** `system.billing` is inaccessible to this user, so there
-  is no near-real-time usage view. An account or metastore admin granting read
-  access would fix that.
+- **Same-day usage view:** since September 25 you can read `system.billing`
+  (granted through the new metastore admin group). Its usage lagged about 3.8
+  hours, against about 9 for Azure Cost Management, and it reports DBUs per
+  product (jobs, pipelines, SQL, serving, AI Gateway, predictive
+  optimization). `cmapss_verify` and `cmapss_retrain`'s `verify` task add a
+  same-day billing snapshot when run as you; the CI principals have no access.
+  - Cross-check for September 24 (DBUs up to 00:00 UTC on the 25th, at the
+    CAD rates above): jobs and pipelines 7.33 DBU ≈ 4.54, SQL 4.87 ≈ 4.72,
+    serving and AI Gateway 31.45 ≈ 3.05, plus NAT and IP ~1.72, ≈ **CAD
+    14.1** in total. Azure had posted 13.42.
+  - It also shows **predictive optimization** DBUs (0.40, 0.15 and 0.33 on
+    September 23, 24 and 25, ≈ CAD 0.1–0.25/day), although `sentinelops_dev`
+    and the CI catalogs have it off. Not yet traced to a catalog.
 
 The local benchmark demonstrates predictive performance on simulated engines.
 It is not evidence of reduced real-world downtime or an operational safety system.

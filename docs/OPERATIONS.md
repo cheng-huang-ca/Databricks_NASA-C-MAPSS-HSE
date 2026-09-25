@@ -120,6 +120,9 @@ flowchart LR
   rather than after it: a threshold breach can't leave the marts stale, and a
   failed dashboard SQL check can't suppress an alert. Either failure fails the
   run.
+  Verified in dev run `248147539009900` (SUCCESS, 30 min): the child run
+  `129586591044115` ran in parallel with `alerts`, found the Genie space, ran
+  every dashboard and Genie query and rebuilt the fleet mart for v3.
 - **Limitation (environments):** `analytics_refresh` also rebuilds the OSHA
   mart, and only dev has OSHA data, so in staging or prod the `analytics` task
   fails. CI never runs `cmapss_retrain` there (staging runs only ingest and

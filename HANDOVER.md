@@ -1,7 +1,9 @@
 # SentinelOps — handover for the next session
 
-Last updated: September 25, 2026, 06:40 UTC. Git `main` holds every milestone,
-one commit each (latest `11fd7cd`), and is pushed to the **public** repository
+Last updated: September 25, 2026, 07:15 UTC. Git `main` holds every milestone
+up to `142676d`; the task F work is on branch `retrain-refreshes-marts`,
+open as [PR #1](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1)
+(green) until the user merges it. The repository is **public**:
 https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE, where GitHub
 Actions deploys staging and prod. See section 6.
 
@@ -10,46 +12,49 @@ Actions deploys staging and prod. See section 6.
 Do these before starting any task, in order. All are free and read-only
 except where marked.
 
-1. **Settle CI run #3** ([36102190326](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/runs/36102190326)).
-   - The user started it manually at 06:17 UTC on `dd62000` (unchanged
-     code). At 06:40 its staging job was running `cmapss_ingest` in
-     Databricks.
-   - Expect a no-op like run #2: identical uploads, nothing appended, verify
-     passes. Then it waits for prod approval.
-   - Check it with the public API (no token, 60 requests/hour):
+1. **Settle PR #1.** Check it with the public API (no token, 60
+   requests/hour):
 
-     ```powershell
-     (Invoke-RestMethod 'https://api.github.com/repos/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/actions/runs/36102190326/jobs' -Headers @{'User-Agent'='sentinelops'}).jobs | ForEach-Object { "$($_.name): $($_.status) $($_.conclusion)" }
-     ```
-   - Approving or rejecting prod is **the user's** click, never yours. If it
-     succeeds, add one line to `docs/cicd-first-run.json` and STATUS. If it
-     failed, read the step log (the user must be signed in to GitHub in the
-     in-app browser as `cheng-huang-ca`).
+   ```powershell
+   (Invoke-RestMethod 'https://api.github.com/repos/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pulls/1' -Headers @{'User-Agent'='sentinelops'}) | Select-Object state, merged, merge_commit_sha
+   ```
+   - **Still open:** remind the user that merging is their click. `main`
+     requires `Unit tests`, which the PR passed.
+   - **Merged:** the push to `main` runs tests, then the staging deploy,
+     which should update `cmapss_retrain` and `analytics_refresh` (plus the
+     known no-op job updates), then a no-op ingest and verify (≈ CAD
+     0.3–0.5), then waits for the user's prod approval. Watch it with
+     `actions/runs?branch=main&per_page=1`; approving prod is **the user's**
+     click. Record the run in `docs/followups-f.json` and STATUS. Offer to
+     delete the merged branch (ask first).
 2. **Check the local Python.** Run `.venv/Scripts/python.exe -m pytest -q`
-   (expect 122 passed).
-   - If Windows still says "An Application Control policy has blocked this
-     file", tell the user. It's their setting to allow the venv, or they can
-     rebuild it with `uv`. Don't work around or change it.
+   (expect 123 passed).
+   - On September 25 at 06:26 UTC Windows still said "An Application Control
+     policy has blocked this file". If it still does, tell the user. It's
+     their setting to allow the venv, or they can rebuild it with `uv`.
+     Don't work around or change it.
    - Until then, use the Databricks CLI, the Azure CLI, git and PowerShell
      (`Invoke-RestMethod`, `ConvertFrom-Json`). Tests run in GitHub Actions on
-     every code push.
+     every code push and pull request.
 3. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
    no custom endpoints, no Event Hubs namespace, no secret scopes. Then the
    posted-cost check.
    - Record the final September 24 and 25 figures in STATUS ("Cost and
-     runtime controls").
-   - Use `infra/cost-query-meters.json` to see whether the "Standard Kafka
-     Endpoint" meter billed during the Event Hubs demo (02:23–03:06 UTC,
-     September 25).
+     runtime controls"). At 06:27 UTC on September 25, Azure had posted CAD
+     13.42 for the 24th; `system.billing` put it at ≈ CAD 14.1.
+   - **Still unanswered:** did the "Standard Kafka Endpoint" meter bill
+     during the Event Hubs demo (02:23–03:06 UTC, September 25)? No Event
+     Hubs meters had posted by 06:27 UTC. Check `infra/cost-query-meters.json`
+     after ~12:00 UTC on the 25th.
    - The credits expire **October 10, 2026**: finish billable work before
      then.
 4. **Ask the user which remaining task to do next** (section 3: D agent
-   deployment, E ML depth, F small follow-ups, including the CI/CD
-   follow-ups under C; then G, the demo script and write-up, last). State
-   costs and approvals up front, as every milestone has.
+   deployment, E ML depth, the rest of F; then G, the demo script and
+   write-up, last). State costs and approvals up front, as every milestone
+   has.
 
 **Where things stand.** Both halves of the portfolio project run in Azure
-Databricks, and every job is manual, bounded and verified. 33 of the 40
+Databricks, and every job is manual, bounded and verified. 34 of the 40
 tracked tasks are done. The **Task status** table at the top of
 [docs/STATUS.md](docs/STATUS.md) is the authoritative tracker; update it as
 work lands.
@@ -59,7 +64,8 @@ work lands.
   - Training from Gold, with a validation-gated `@champion` (v3).
   - Idempotent fleet batch scoring, delayed-label and age-matched drift
     monitoring, and threshold alerts.
-  - One orchestrated job, `cmapss_retrain`.
+  - One orchestrated job, `cmapss_retrain`, which also refreshes the
+    dashboard marts (its `analytics` task runs `analytics_refresh`).
   - A bounded **real-time serving demo** (deleted afterwards): all 13,096
     fleet rows came back bit-identical to the batch log.
 - **Safety GenAI assistant** (OSHA Severe Injury Reports):
@@ -101,15 +107,20 @@ work lands.
   - Pushes to `main` test, deploy staging, and land, ingest and verify C-MAPSS
     there, then deploy prod after a required reviewer approves. Docs-only
     pushes skip the workflow.
-  - First green run: `36098067567`. Push rerun `36100233863` was idempotent
-    under the principal (nothing appended, every table `NO_OP`).
+  - First green run: `36098067567`. Push rerun `36100233863` and manual
+    rerun `36102190326` were idempotent under the principal (nothing
+    appended, every table `NO_OP`).
+  - Pull requests run tests, then validation as the staging principal (first
+    green PR run `36104902332`). `main` requires the `Unit tests` check
+    (non-admins).
 - **Cost guardrails:**
   - Azure budget `sentinelops-dev-monthly` (CAD 150/month, email alerts);
-  - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop.
+  - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop;
+  - `system.billing` is readable (about 4 h behind, vs about 9 for Azure).
 
-**Next task:** the user's choice among the optional tasks in section 3 (D agent
-deployment, E ML depth, F small follow-ups). G, the demo script and write-up,
-comes last. Section 0 comes first.
+**Next task:** settle PR #1 (section 0), then the user's choice among the
+optional tasks in section 3 (D agent deployment, E ML depth, the rest of F).
+G, the demo script and write-up, comes last. Section 0 comes first.
 
 ## 1. Start here
 
@@ -128,7 +139,7 @@ comes last. Section 0 comes first.
 ```powershell
 . ./scripts/Use-SentinelOps.ps1
 az account show --query '{name:name,id:id,user:user.name}' -o json
-.venv/Scripts/python.exe -m pytest -q                      # expect 122 passed (if Windows allows the venv's Python)
+.venv/Scripts/python.exe -m pytest -q                      # expect 123 passed (if Windows allows the venv's Python)
 foreach ($t in 'dev','staging','prod') { .tools/databricks/databricks.exe bundle validate --strict -t $t }
 .tools/databricks/databricks.exe bundle validate --strict -t dev
 .tools/databricks/databricks.exe bundle plan -t dev        # expect only the 5 known no-op job "updates" (section 4)
@@ -242,7 +253,7 @@ then run in the cloud. Finish with the checklist in section 7.
 | C | Environments and CI/CD (staging/prod, service principals, GitHub, OIDC) | Done (run `36098067567`) | ≈ CAD 0.3–0.5 of serverless per deploying push (staging ingest and verify) |
 | D | Optional: agent deployment and review app | Yes: serving endpoint | Serving while scaled up, plus tokens |
 | E | Optional ML depth: FD002–FD004, tuning, `mlflow.evaluate`, sequence baseline, Lakehouse Monitoring | Landing upload (FD002–4); monitoring (billable) | Serverless minutes; monitoring has a 2× DBU multiplier |
-| F | Small follow-ups (below) | Varies | Cents |
+| F | Small follow-ups (below) | Partly done (retrain refresh, billing access, branch protection, PR validation, scratch cleanup) | Cents |
 | G | Demo script and portfolio write-up (last) | Publishing externally: yes | Free |
 
 ### A. REST API ingestion (done)
@@ -297,14 +308,23 @@ In short:
 - **Workflow:** GitHub Actions authenticates with Databricks OIDC (federation
   policies pin the repository's owner and repository IDs).
 
+Done on September 25 (task F session):
+- **Branch protection:** `main` requires the `Unit tests` check, enforced for
+  non-admins only, so the owner can still push directly (GitHub reports a
+  bypass). Force pushes and deletions are blocked. A docs-only pull request
+  never reports `Unit tests` (paths-ignore), so merge it with the admin
+  bypass.
+- **Pull request validation:** the first pull request
+  ([#1](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1))
+  proved the `pull_request` federation subject. Its first run
+  (`36104608730`) failed `validate --strict -t prod` as the staging
+  principal (see section 4); prod is now validated without `--strict` in pull
+  requests, and run `36104902332` passed.
+
 Still open, optional:
 - **Serving endpoint:** `infra/serving-endpoint.json` hard-codes
   `sentinelops_dev`. Parameterize it if serving should move to staging or
   prod.
-- **Branch protection:** protect `main` (require the `Unit tests` check),
-  which is free for public repositories.
-- **Pull request validation:** it has never run. Open a pull request from a
-  branch to exercise the `pull_request` federation subject.
 - **Prod data:** prod stays deploy-only. Landing data there would be a new
   decision (cost, the same upload path as staging).
 
@@ -348,10 +368,24 @@ The masking gap no longer blocks this; masking v2 is verified.
 
 ### F. Small follow-ups
 
-- Add `analytics_refresh` as the last task of `cmapss_retrain`, so
-  `cmapss_fleet_status` can't go stale after a promotion.
-- Ask an account or metastore admin for read access to `system.billing`, for
-  a same-day usage view.
+Done on September 25:
+- `cmapss_retrain` runs `analytics_refresh` as its `analytics` task (a
+  `run_job_task` after `monitor`, beside `alerts`), so `cmapss_fleet_status`
+  can't go stale after a promotion. This also fixed a latent bug: the refresh
+  looked for the Genie space in `resources`, but it moved under
+  `targets.dev` with CI/CD; it now takes `--target ${bundle.target}`.
+- `system.billing` read access, through a new metastore admin group (section
+  5). A same-day usage view: query `system.billing.usage` with a one-off
+  `jobs submit` (see STATUS, "Cost and runtime controls").
+- The two scratch diagnostics were deleted (the empty
+  `sentinelops-scratch` folder now holds only `billing_check.py`, the
+  one-off billing query).
+
+Still open:
+- Trace the **predictive optimization** DBUs in `system.billing` (about CAD
+  0.1–0.25/day, although the SentinelOps catalogs have it off). Reading
+  `system.storage.predictive_optimization_operations_history` needs a grant
+  on `system.storage`; ask first.
 - The eval v2 misses: the injection-injury retrieval miss (few matching
   narratives), and the robbery answer key (assaults vs shootings).
 - A masking review of residual initials ("G&H [EMPLOYER]") and contractor
@@ -360,8 +394,8 @@ The masking gap no longer blocks this; masking v2 is verified.
   warehouse time).
 - Screenshots for the write-up. The in-app browser can't save them; ask the
   user, or use Claude in Chrome if it's connected.
-- The two old diagnostics in `/Workspace/Users/cheng.huang.ca@outlook.com/sentinelops-scratch`
-  are safe to delete, with the user's OK.
+- The masking review needs local Python on the raw archive, so it waits until
+  the venv runs again.
 
 ### G. Demo script and portfolio write-up (last)
 
@@ -498,6 +532,12 @@ The masking gap no longer blocks this; masking v2 is verified.
 | GitHub actions as the wrong account | *Run workflow* and deployment approval need write access. Check `document.querySelector('meta[name="user-login"]').content` before assuming. Git Credential Manager may hold another account: set `git config --local credential.https://github.com.username cheng-huang-ca` and let the user sign in; never delete stored credentials |
 | Windows blocks `.venv\Scripts\python.exe` | Application Control, since September 25. The Databricks CLI, `az`, git and PowerShell still run: use the CLI directly and PowerShell `Invoke-RestMethod` for watchers. The user decides whether to allow the venv |
 | Catalog owner can't read the principals' schemas | Expected: ownership allows granting, not reading. Grant yourself `USE SCHEMA`/`SELECT` if inspection is needed |
+| `validate --strict -t prod` fails in a pull request | The PR job holds the staging principal's token, so prod's `root_path` (`${workspace.current_user.userName}`) resolves to that principal's folder, which prod's `permissions` don't list. PRs validate prod without `--strict`; never add the staging principal to prod or a PR subject to prod's policy |
+| Config refactors can strand job code | Moving the Genie space under `targets.dev` broke `refresh_analytics.py`'s lookup silently, because nothing ran it. When YAML moves, grep the jobs that read the YAML |
+| `run_job_task` settings don't round-trip | Like pipeline tasks, the Jobs API doesn't echo `max_retries`/`disable_auto_optimization` on a `run_job_task`, so `cmapss_retrain` stays among the no-op plan "updates" |
+| Granting on `system.*` | Needs a metastore admin; this auto-provisioned metastore had none (owner: the system identity that created it). The group `sentinelops-metastore-admins` now owns it. Assignment took ~1–2 minutes to reach the workspace |
+| SCIM filters in PowerShell 5.1 | Inner double quotes are stripped: write `--filter 'userName eq \"x@y\"'` |
+| No `gh` CLI here | Open pull requests in the in-app browser (signed in as `cheng-huang-ca`); the app's PR binding needs `gh`, so watch checks with the public API |
 
 ## 5. Resources
 
@@ -518,7 +558,7 @@ the budget in `infra/budget.json`, and the demo endpoint in
 | pipeline `cmapss_medallion` | `77ecd502-9283-4528-83e3-7ab8666ada1e` | C-MAPSS Bronze→Silver→Gold |
 | job `cmapss_ingest` / `cmapss_verify` | `264959928637120` / `366011234786265` | Run the pipeline / independent parity checks |
 | job `cmapss_train` / `cmapss_promote` / `cmapss_score` | `477632929595835` / `714826690927619` / `362250970463849` | Train → gate → score + monitor |
-| job `cmapss_retrain` | `1037945637149770` | Orchestrated loop (run `599725542930474`; breach test `955572570273055`) |
+| job `cmapss_retrain` | `1037945637149770` | Orchestrated loop (run `599725542930474`; breach test `955572570273055`; with the `analytics` task, run `248147539009900`) |
 | job `cmapss_serving_check` | `782318629064026` | Serving parity (run `1018787913287976`) |
 | job `fd001_baseline` | `446848359557450` | Original bootstrap (kept) |
 | pipeline `osha_safety` | `7d53a0fb-d724-4628-a854-23dc1d0e283a` | OSHA Bronze→Silver→Gold; v2 update `5261ee72…` |
@@ -526,7 +566,7 @@ the budget in `infra/budget.json`, and the demo endpoint in
 | job `osha_retrieval_eval` | `383639217735446` | Retrieval evaluation (run `603274434690806`) |
 | job `osha_answer_eval` | `1029765841933443` | v1 run `745084593826476`; v2 run `425541794390409`; identity run `731577238433197` |
 | job `osha_extraction_eval` | `804198192778755` | Extraction (run `570236144351626`) |
-| job `analytics_refresh` | `847239470140874` | Marts + SQL checks (run `429694746857912`) |
+| job `analytics_refresh` | `847239470140874` | Marts + SQL checks (run `429694746857912`; from retrain, run `129586591044115`) |
 | dashboards `fleet_health` / `safety_incidents` | `01f1b83350951effa1d1f1bc6ca9e6cd` / `01f1b83350861a42888ebab34d8a8785` | Published, viewer credentials |
 | pipeline `weather_open_meteo` | `8eca1296-fbee-409a-a093-f3d8b82ca7f6` | Open-Meteo Bronze→Silver→Gold; updates `974f3091…`, `a2097c00…`, `edd01293…` (rerun, all NO_OP) |
 | job `weather_ingest` | `584629930216724` | Fetch → pipeline → verify: runs `795987049449431`, `722495160937045`, rerun `899114500995009` |
@@ -560,6 +600,13 @@ their principal. Staging's `cmapss_ingest` is `487600401912875` (run
 - **Account:** Databricks account ID `5b731cd2-ed03-4635-963e-154fc8b4f034`
   (the user is an account admin). For account commands, set `ARM_TENANT_ID`
   to the tenant.
+- **Metastore** `metastore_azure_westus2` (`233d4693-562b-446d-882c-03c1412965a1`):
+  metastore admin is the account group `sentinelops-metastore-admins`
+  (`152211826237897`, one member: the user), assigned September 25. The user
+  holds `USE SCHEMA` + `SELECT` on `system.billing` (`USE CATALOG` on `system`
+  comes from `account users`).
+- **Branch protection** on `main`: the `Unit tests` check is required for
+  non-admins; force pushes and deletions are blocked.
 
 - All jobs are manual, STANDARD, one concurrent run, zero retries (including
   serverless auto-optimization), with timeouts and no schedules.
