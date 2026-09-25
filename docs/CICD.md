@@ -1,6 +1,8 @@
 # Environments and CI/CD
 
-Repository: https://github.com/Huangc495/Databricks_NASA-C-MAPSS-HSE (public).
+Repository: https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE (public). It moved here
+from a deleted account; the federation policies were re-pointed to the new owner and repository
+IDs, so the old subjects match nothing.
 
 Three bundle targets share one workspace and one Unity Catalog metastore:
 
@@ -18,10 +20,10 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
 
 | Service principal | Application (client) ID | Federation subjects (issuer `https://token.actions.githubusercontent.com`) |
 |---|---|---|
-| `sentinelops-staging-ci` | `02bece01-ccd7-4130-8e8d-c8de43583e41` | `repo:Huangc495@332607540/Databricks_NASA-C-MAPSS-HSE@1386699124:environment:staging`, `repo:Huangc495@332607540/Databricks_NASA-C-MAPSS-HSE@1386699124:pull_request` |
-| `sentinelops-prod-ci` | `5d729946-2748-48f4-9300-ba9a559bf93d` | `repo:Huangc495@332607540/Databricks_NASA-C-MAPSS-HSE@1386699124:environment:prod` |
+| `sentinelops-staging-ci` | `02bece01-ccd7-4130-8e8d-c8de43583e41` | `repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:staging`, `repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:pull_request` |
+| `sentinelops-prod-ci` | `5d729946-2748-48f4-9300-ba9a559bf93d` | `repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:prod` |
 
-- **Two details the first run exposed** (from Databricks' own error, run `36093581464`):
+- **Two details the first CI run exposed** (from Databricks' own error message):
   - **Subject:** GitHub puts immutable numeric IDs in the subject,
     `repo:<owner>@<owner id>/<repo>@<repo id>:...`, not `repo:<owner>/<repo>:...`. A renamed
     or deleted-and-recreated repository therefore can't inherit access.
@@ -93,7 +95,7 @@ $env:ARM_TENANT_ID='<tenant id>'; $env:DATABRICKS_HOST='https://accounts.azureda
 $env:DATABRICKS_ACCOUNT_ID='5b731cd2-ed03-4635-963e-154fc8b4f034'; $env:DATABRICKS_AUTH_TYPE='azure-cli'
 databricks account service-principals create --display-name sentinelops-staging-ci --active
 databricks account workspace-assignment update 7405619144539463 <principal id> --json '{"permissions": ["USER"]}'
-databricks account service-principal-federation-policy create <principal id> --json '{"oidc_policy": {"issuer": "https://token.actions.githubusercontent.com", "audiences": ["5b731cd2-ed03-4635-963e-154fc8b4f034"], "subject": "repo:Huangc495@332607540/Databricks_NASA-C-MAPSS-HSE@1386699124:environment:staging"}}'
+databricks account service-principal-federation-policy create <principal id> --json '{"oidc_policy": {"issuer": "https://token.actions.githubusercontent.com", "audiences": ["5b731cd2-ed03-4635-963e-154fc8b4f034"], "subject": "repo:cheng-huang-ca@333634208/Databricks_NASA-C-MAPSS-HSE@1386801570:environment:staging"}}'
 # Workspace: entitlements (SCIM patch), catalogs and grants, warehouse CAN_USE:
 .venv/Scripts/python.exe scripts/setup_environment_catalogs.py
 databricks permissions update warehouses <warehouse id> --json '{"access_control_list": [{"service_principal_name": "<application id>", "permission_level": "CAN_USE"}]}'

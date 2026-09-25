@@ -87,7 +87,7 @@ cost or prerequisites, with the reason given.
 |---|---|---|
 | Unit tests (92) and local CI workflow file | Done (local) | `.github/workflows/ci.yml` has never run: no remote |
 | Git history | Done (local) | Branch `main`; no remote; one commit per milestone (`git log`) |
-| GitHub repository, CI runs, OIDC deployment to staging/prod | In progress | Public repo `Huangc495/Databricks_NASA-C-MAPSS-HSE`; Databricks OIDC federation policies (no secrets); workflow: tests → staging deploy + C-MAPSS ingest/verify → approved prod deploy. Awaiting the first run |
+| GitHub repository, CI runs, OIDC deployment to staging/prod | In progress | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`; Databricks OIDC federation policies (no secrets); workflow: tests → staging deploy + C-MAPSS ingest/verify → approved prod deploy. Awaiting the first run |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
