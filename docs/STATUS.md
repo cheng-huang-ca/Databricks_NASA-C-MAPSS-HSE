@@ -155,6 +155,10 @@ evidence [cicd-first-run.json](cicd-first-run.json).
   - Prod redeployed after your approval (06:18–06:19 UTC), a no-op because
     the configuration was unchanged.
   - ≈ CAD 0.25 of serverless.
+- **Manual rerun `36102190326`** (*Run workflow* on the same commit): the
+  same result. Ingest `87485400787907` (7.4 min) appended nothing, with every
+  Silver and Gold table `NO_OP`; verify `215185864273674` (7.3 min) passed
+  with the same counts; prod redeployed after your approval (06:37 UTC).
 - **What the first attempts exposed (all fixed and tested):**
   1. **Subject and audience.** GitHub's OIDC subject embeds immutable owner
      and repository IDs, and the CLI requests the token for the workspace

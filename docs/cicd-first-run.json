@@ -81,6 +81,23 @@
       "Deploy prod (after approval)": {"result": "success", "utc": "06:18:34-06:19:02", "approved_by": "cheng-huang-ca", "note": "same configuration as the deployed prod: a no-op redeploy"}
     }
   },
+  "manual_rerun": {
+    "run_id": 36102190326,
+    "event": "workflow_dispatch on dd62000 (unchanged code; allow_staging_recreate off)",
+    "jobs": {
+      "Unit tests": {"result": "success", "utc": "06:19:05-06:19:50", "tests": 122},
+      "Deploy and test staging": {
+        "result": "success", "utc": "06:19:55-06:35:57",
+        "databricks_runs": {
+          "cmapss_ingest": {"run_id": 87485400787907, "result": "SUCCESS", "minutes": 7.4,
+                            "pipeline_update": "48026e86… COMPLETED: bronze streams appended nothing; every Silver and Gold flow planned NO_OP"},
+          "cmapss_verify": {"run_id": 215185864273674, "result": "SUCCESS", "minutes": 7.3,
+                            "counts": {"gold.cmapss_features": 33727, "gold.cmapss_training_labels": 20631, "gold.cmapss_test_endpoints": 100}}
+        }
+      },
+      "Deploy prod (after approval)": {"result": "success", "utc": "06:37:04-06:37:32", "approved_by": "cheng-huang-ca", "note": "a no-op redeploy"}
+    }
+  },
   "failed_attempts_and_fixes": [
     {"symptom": "github-oidc: TOKEN_SUBJECT_INVALID", "cause": "GitHub subjects carry immutable owner and repository IDs (repo:<owner>@<id>/<repo>@<id>:...), and the CLI requests the token for the workspace OIDC endpoint, not the account ID", "fix": "policies use the ID-pinned subjects and accept both audiences"},
     {"symptom": "bundle validate --strict: 4 warnings only in CI", "cause": "sync.exclude patterns for git-ignored directories match nothing in a clean checkout; the principal's bundle folder grants it CAN_MANAGE, which the target didn't state", "fix": "excludes dropped (sync skips git-ignored files); each target lists its principal; a test requires every sync pattern to match a tracked file"},

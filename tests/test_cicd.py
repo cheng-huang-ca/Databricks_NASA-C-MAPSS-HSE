@@ -83,6 +83,10 @@ def test_workflow_pins_actions_and_limits_oidc_tokens():
 def test_each_deploy_uses_its_targets_principal_and_prod_waits_for_staging():
     assert JOBS["validate"]["env"]["DATABRICKS_CLIENT_ID"] == run_as("staging")
     assert "head.repo.full_name == github.repository" in JOBS["validate"]["if"]
+    # Strict only where the identity matches the target: as the staging principal, prod's strict
+    # validation fails on the principal's own folder permissions (run 36104608730).
+    assert [s.get("run") for s in JOBS["validate"]["steps"] if "run" in s] == [
+        "databricks bundle validate --strict -t staging", "databricks bundle validate -t prod"]
     assert (JOBS["staging"]["environment"], JOBS["staging"]["env"]["DATABRICKS_CLIENT_ID"]) == ("staging", run_as("staging"))
     assert "refs/heads/main" in JOBS["staging"]["if"] and "pull_request" in JOBS["staging"]["if"]
     assert (JOBS["prod"]["environment"], JOBS["prod"]["env"]["DATABRICKS_CLIENT_ID"]) == ("prod", run_as("prod"))

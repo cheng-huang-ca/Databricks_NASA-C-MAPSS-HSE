@@ -35,6 +35,13 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
   they grant nothing.
 - **Pull requests** validate the bundle as the staging principal. Pull requests from forks get no
   OIDC token, so they run only the unit tests.
+  - Staging is validated with `--strict`, prod without it. A pull request never gets the prod
+    principal's token, and as the staging principal, prod's root path
+    (`/Workspace/Users/${workspace.current_user.userName}/...`) resolves to the staging
+    principal's own folder, whose permissions prod rightly doesn't list. The first pull request
+    run (`36104608730`) failed on exactly that warning.
+  - Nothing is lost: staging's strict run reports every warning that doesn't depend on the
+    identity, and the prod job validates strictly as the prod principal before it deploys.
 - **Least privilege:**
   - Each principal is a plain workspace user (`workspace-access`, `databricks-sql-access`; not an
     admin).
@@ -66,7 +73,7 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
 
 | Event | Jobs |
 |---|---|
-| Pull request | Unit tests → `bundle validate --strict` for staging and prod |
+| Pull request | Unit tests → `bundle validate` for staging (`--strict`) and prod |
 | Push to `main` | Unit tests → deploy staging, land C-MAPSS, ingest, verify → **wait for approval** → deploy prod |
 | Manual (`workflow_dispatch`) on `main` | Same as a push; optionally allows a destructive staging deploy (below) |
 | Only `docs/**` or Markdown changed | Nothing runs (`paths-ignore`) |

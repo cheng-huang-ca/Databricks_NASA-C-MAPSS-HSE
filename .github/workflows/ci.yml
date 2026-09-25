@@ -67,7 +67,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: databricks/setup-cli@d76f84cea9893ce68311a1f33fb0c95af6c963b7  # v1.17.0
       - run: databricks bundle validate --strict -t staging
-      - run: databricks bundle validate --strict -t prod
+      # Not strict: a pull request never gets the prod principal's token, and as the staging
+      # principal prod's root path resolves to that principal's own folder, whose permissions prod
+      # (rightly) doesn't list (run 36104608730). Staging's strict run covers every warning that
+      # doesn't depend on the identity; the prod job validates strictly as prod before deploying.
+      - run: databricks bundle validate -t prod
 
   staging:
     name: Deploy and test staging
