@@ -47,7 +47,9 @@ if version not in versions:
     raise ValueError(f"{model_name} has no version {version}")
 # Traces from the endpoint go to the experiment active at deploy time.
 mlflow.set_experiment(f"/Users/{w.current_user.me().user_name}/sentinelops-safety-rag")
-deployment = agents.deploy(model_name, version, endpoint_name=args.endpoint_name, scale_to_zero_enabled=True,
+# The parameter is `scale_to_zero` (default False). `scale_to_zero_enabled=True`, as one docs page
+# shows it, was accepted silently and ignored on the first deployment (run 1016924296649877).
+deployment = agents.deploy(model_name, version, endpoint_name=args.endpoint_name, scale_to_zero=True,
                            tags={"project": "sentinelops", "lifetime": "bounded-demo"})
 endpoint = w.serving_endpoints.wait_get_serving_endpoint_not_updating(args.endpoint_name,
                                                                       timeout=timedelta(minutes=40))
@@ -62,3 +64,6 @@ report = {"model": model_name, "version": version, "endpoint": args.endpoint_nam
 print(json.dumps(report, default=str))
 if "READY" not in report["state"]["ready"] or "FAILED" in report["state"]["config_update"]:
     raise RuntimeError(f"Endpoint {args.endpoint_name} is not ready: {report['state']}")
+if not entities or not all(e["scale_to_zero_enabled"] for e in entities):
+    # An always-on Small CPU endpoint bills up to ~CAD 9/day: never leave one running by accident.
+    raise RuntimeError(f"Endpoint {args.endpoint_name} doesn't scale to zero: {entities}")
