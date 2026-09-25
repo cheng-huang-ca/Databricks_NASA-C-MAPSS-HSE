@@ -1,34 +1,41 @@
 # SentinelOps — handover for the next session
 
-Last updated: September 25, 2026, 07:15 UTC. Git `main` holds every milestone
-up to `142676d`; the task F work is on branch `retrain-refreshes-marts`,
-open as [PR #1](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1)
-(green) until the user merges it. The repository is **public**:
-https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE, where GitHub
-Actions deploys staging and prod. See section 6.
+Last updated: September 25, 2026, 16:25 UTC. Git `main` holds every milestone
+up to `142676d`. Two pull requests wait for the user to merge, in order:
+[PR #1](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1)
+(task F, branch `retrain-refreshes-marts`) and
+[PR #2](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/2)
+(task D, branch `osha-agent-deployment`, built on #1). The repository is
+**public**: https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE,
+where GitHub Actions deploys staging and prod. See section 6.
 
 ## 0. First actions for the new session
 
 Do these before starting any task, in order. All are free and read-only
 except where marked.
 
-1. **Settle PR #1.** Check it with the public API (no token, 60
+1. **Settle PRs #1 and #2.** Check them with the public API (no token, 60
    requests/hour):
 
    ```powershell
-   (Invoke-RestMethod 'https://api.github.com/repos/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pulls/1' -Headers @{'User-Agent'='sentinelops'}) | Select-Object state, merged, merge_commit_sha
+   foreach ($n in 1, 2) { (Invoke-RestMethod "https://api.github.com/repos/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pulls/$n" -Headers @{'User-Agent'='sentinelops'}) | Select-Object number, state, merged, merge_commit_sha }
    ```
-   - **Still open:** remind the user that merging is their click. `main`
-     requires `Unit tests`, which the PR passed.
-   - **Merged:** the push to `main` runs tests, then the staging deploy,
-     which should update `cmapss_retrain` and `analytics_refresh` (plus the
-     known no-op job updates), then a no-op ingest and verify (≈ CAD
-     0.3–0.5), then waits for the user's prod approval. Watch it with
-     `actions/runs?branch=main&per_page=1`; approving prod is **the user's**
-     click. Record the run in `docs/followups-f.json` and STATUS. Offer to
-     delete the merged branch (ask first).
+   - **Still open:** remind the user that merging is their click, #1 first.
+     `main` requires `Unit tests`, which both passed.
+   - **Merged:** each push to `main` runs tests, then the staging deploy
+     (#1 updates `cmapss_retrain` and `analytics_refresh`; #2 adds nothing to
+     staging, since the agent jobs are dev-only), then a no-op ingest and
+     verify (≈ CAD 0.3–0.5), then waits for the user's prod approval. Watch
+     with `actions/runs?branch=main&per_page=1`; approving prod is **the
+     user's** click. Record the runs in `docs/followups-f.json` /
+     `docs/osha-agent-deployment.json` and STATUS. Offer to delete the merged
+     branches (ask first).
 2. **Check the local Python.** Run `.venv/Scripts/python.exe -m pytest -q`
-   (expect 123 passed).
+   (expect 131 passed).
+   - **If it works, run the pending name scan first:**
+     `python scripts/scan_answer_names.py artifacts/agent/agent-endpoint-report.json`
+     (the endpoint regression's answers; prints IDs only). Record the result
+     in `docs/osha-agent-deployment.json`, SAFETY_RAG and STATUS.
    - On September 25 at 06:26 UTC Windows still said "An Application Control
      policy has blocked this file". If it still does, tell the user. It's
      their setting to allow the venv, or they can rebuild it with `uv`.
@@ -37,8 +44,9 @@ except where marked.
      (`Invoke-RestMethod`, `ConvertFrom-Json`). Tests run in GitHub Actions on
      every code push and pull request.
 3. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
-   no custom endpoints, no Event Hubs namespace, no secret scopes. Then the
-   posted-cost check.
+   no custom endpoints (the agent's was deleted at 16:20 UTC on September
+   25), no Event Hubs namespace, no secret scopes. Then the posted-cost
+   check.
    - Record the final September 25 figure in STATUS ("Cost and runtime
      controls"). September 24 closed at CAD 14.14, as `system.billing`
      predicted.
@@ -49,13 +57,12 @@ except where marked.
      both.
    - The credits expire **October 10, 2026**: finish billable work before
      then.
-4. **Ask the user which remaining task to do next** (section 3: D agent
-   deployment, E ML depth, the rest of F; then G, the demo script and
-   write-up, last). State costs and approvals up front, as every milestone
-   has.
+4. **Ask the user which remaining task to do next** (section 3: E ML depth,
+   the rest of F, the D follow-ups; then G, the demo script and write-up,
+   last). State costs and approvals up front, as every milestone has.
 
 **Where things stand.** Both halves of the portfolio project run in Azure
-Databricks, and every job is manual, bounded and verified. 34 of the 40
+Databricks, and every job is manual, bounded and verified. 35 of the 40
 tracked tasks are done. The **Task status** table at the top of
 [docs/STATUS.md](docs/STATUS.md) is the authoritative tracker; update it as
 work lands.
@@ -82,6 +89,10 @@ work lands.
       v2 fixed;
     - identity check: no employer names in 76 answers, and 13 of 16 identity
       requests declined.
+  - **Deployed agent** (PR #2, a bounded demo): `osha_assistant` v1 on a
+    scale-to-zero endpoint with the Review App. Through the endpoint it made
+    the same decisions as in-process (name scan pending). The endpoint was
+    deleted after the user used the Review App.
 - **Self-service analytics:** two AI/BI dashboards and a Genie space, all
   bundle resources, fed by the `analytics_refresh` job.
 - **REST API ingestion** (Open-Meteo weather, job `weather_ingest`):
@@ -119,9 +130,9 @@ work lands.
   - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop;
   - `system.billing` is readable (about 4 h behind, vs about 9 for Azure).
 
-**Next task:** settle PR #1 (section 0), then the user's choice among the
-optional tasks in section 3 (D agent deployment, E ML depth, the rest of F).
-G, the demo script and write-up, comes last. Section 0 comes first.
+**Next task:** section 0 (PRs #1 and #2, the pending name scan), then the
+user's choice among E ML depth, the rest of F and the D follow-ups. G, the
+demo script and write-up, comes last.
 
 ## 1. Start here
 
@@ -252,7 +263,7 @@ then run in the cloud. Finish with the checklist in section 7.
 | A | REST API ingestion | Done (Open-Meteo weather) | About CAD 1 for the backfill; reruns make no API calls |
 | B | Event Hubs (Kafka endpoint) streaming demo | Done (bounded; namespace deleted) | ≤ CAD 0.35 of Event Hubs plus ~0.3 of serverless |
 | C | Environments and CI/CD (staging/prod, service principals, GitHub, OIDC) | Done (run `36098067567`) | ≈ CAD 0.3–0.5 of serverless per deploying push (staging ingest and verify) |
-| D | Optional: agent deployment and review app | Yes: serving endpoint | Serving while scaled up, plus tokens |
+| D | Agent deployment and Review App | Done (endpoint deleted after the Review App; name scan pending) | ≈ CAD 1.0–1.3 |
 | E | Optional ML depth: FD002–FD004, tuning, `mlflow.evaluate`, sequence baseline, Lakehouse Monitoring | Landing upload (FD002–4); monitoring (billable) | Serverless minutes; monitoring has a 2× DBU multiplier |
 | F | Small follow-ups (below) | Partly done (retrain refresh, billing access, branch protection, PR validation, scratch cleanup) | Cents |
 | G | Demo script and portfolio write-up (last) | Publishing externally: yes | Free |
@@ -329,23 +340,38 @@ Still open, optional:
 - **Prod data:** prod stays deploy-only. Landing data there would be a new
   decision (cost, the same upload path as staging).
 
-### D. Optional: agent deployment and review app
+### D. Agent deployment and Review App (done September 25, PR #2)
 
-The masking gap no longer blocks this; masking v2 is verified.
+The design, results and caveats are in `docs/SAFETY_RAG.md` ("Deployed
+agent"); the evidence is in `docs/osha-agent-deployment.json`.
 
-- **Wrap `sentinelops.answers.Assistant`** as an MLflow `ResponsesAgent`.
-  Endpoints can't read Delta without a warehouse, so package the 256-dim
-  index and document text as model artifacts (about 104 MB of vectors,
-  roughly 150–200 MB in total; fits the 4 GB CPU limit).
-- **Declare the embedding and chat endpoints as resources**, for automatic
-  authentication passthrough.
-- **Deploy** with scale-to-zero and a review app (check the current Agent
-  Framework and `databricks-agents` docs and prices). Rerun the
-  identity and v2 sets against the endpoint as a regression, then delete
-  it.
-- **Consider a second layer:** decline any draft that tries to name a
-  masked `[EMPLOYER]`. The model answered 3 of 16 identity requests, but
-  without names.
+In short:
+- `sentinelops.agent.OshaAgent` (a `ResponsesAgent`) runs the evaluated
+  `Assistant` unchanged, with the index and report text as model artifacts
+  (≈ 145 MB) and the chat and embedding endpoints as declared resources.
+- Dev-only jobs: `osha_agent_log` (register `osha_assistant`, smoke-test),
+  `osha_agent_deploy` (`agents.deploy`, `scale_to_zero=True`; fails on an
+  always-on endpoint) and `osha_agent_eval` (the identity and v2 sets
+  through the endpoint).
+- Result: the same decisions and citations as in-process (identity 13/16
+  declined; eval v2 59/60).
+
+The endpoint was deleted at 16:20 UTC on September 25, after the user used
+the Review App (57 minutes of life). To demo it again (for G), run
+`osha_agent_deploy` (≈ 10 minutes to READY; it refuses an always-on
+endpoint), then delete it the same day with the user's OK.
+
+Still open:
+- **Name scan** of the endpoint's answers, once local Python works (section
+  0).
+- **Second layer:** decline any draft that tries to name a masked
+  `[EMPLOYER]` (deferred so the regression compared like with like). Tune
+  on DEV questions, then a new held-out set; register as `osha_assistant`
+  v2 and redeploy (the same endpoint takes the new version without
+  downtime).
+- **Databricks Apps:** Databricks now recommends Apps for new agents. A
+  migration would be a separate decision (no scale-to-zero; billed while
+  running).
 
 ### E. Optional ML depth
 
@@ -545,6 +571,8 @@ Still open:
 | Granting on `system.*` | Needs a metastore admin; this auto-provisioned metastore had none (owner: the system identity that created it). The group `sentinelops-metastore-admins` now owns it. Assignment took ~1–2 minutes to reach the workspace |
 | SCIM filters in PowerShell 5.1 | Inner double quotes are stripped: write `--filter 'userName eq \"x@y\"'` |
 | No `gh` CLI here | Open pull requests in the in-app browser (signed in as `cheng-huang-ca`); the app's PR binding needs `gh`, so watch checks with the public API |
+| `agents.deploy(..., scale_to_zero_enabled=True)` deployed an always-on endpoint | The parameter is `scale_to_zero` (default False); the other spelling, shown on a Microsoft Learn page, is silently ignored. Always read `served_entities[].scale_to_zero_enabled` after a deploy (`deploy_osha_agent.py` now fails if it's false). To fix one in place, `serving-endpoints update-config` with the same entity, version and `environment_vars` plus `scale_to_zero_enabled: true` (a zero-downtime rollout) |
+| Serverless job "Unexpected error during library installation" (`INTERNAL_ERROR`) | Seen once with `databricks-agents==1.12.0`; the identical rerun installed fine. A resolver conflict would name packages; an internal error is worth one retry before debugging |
 
 ## 5. Resources
 
@@ -573,6 +601,7 @@ the budget in `infra/budget.json`, and the demo endpoint in
 | job `osha_retrieval_eval` | `383639217735446` | Retrieval evaluation (run `603274434690806`) |
 | job `osha_answer_eval` | `1029765841933443` | v1 run `745084593826476`; v2 run `425541794390409`; identity run `731577238433197` |
 | job `osha_extraction_eval` | `804198192778755` | Extraction (run `570236144351626`) |
+| job `osha_agent_log` / `osha_agent_deploy` / `osha_agent_eval` (dev-only) | `52194206909988` / `147905461503892` / `1009782069371084` | Register (run `838941933038146`) / deploy (run `1016924296649877`) / regression through the endpoint (run `197582367273355`) |
 | job `analytics_refresh` | `847239470140874` | Marts + SQL checks (run `429694746857912`; from retrain, run `129586591044115`) |
 | dashboards `fleet_health` / `safety_incidents` | `01f1b83350951effa1d1f1bc6ca9e6cd` / `01f1b83350861a42888ebab34d8a8785` | Published, viewer credentials |
 | pipeline `weather_open_meteo` | `8eca1296-fbee-409a-a093-f3d8b82ca7f6` | Open-Meteo Bronze→Silver→Gold; updates `974f3091…`, `a2097c00…`, `edd01293…` (rerun, all NO_OP) |
@@ -621,6 +650,11 @@ their principal. Staging's `cmapss_ingest` is `487600401912875` (run
 - The Event Hubs namespace `evhns-sentinelops-7s5fwy` (02:23–03:06 UTC,
   September 25) and the secret scope `sentinelops-eventhubs` were deleted.
   The `Microsoft.EventHub` provider stays registered (free).
+- The agent endpoint `sentinelops-osha-agent` (`osha_assistant` v1, Small
+  CPU, scale-to-zero, Review App) lived 15:23–16:20 UTC on September 25 and
+  was deleted. Kept: model `sentinelops_dev.sentinelops_dev.osha_assistant`
+  (v1, MLflow run `2f982340…`) and its inference table
+  `sentinelops_dev.sentinelops_dev.osha_assistant_payload`.
 - The serving endpoint `sentinelops-rul-demo` was deleted on September 24.
   Its inference table, `sentinelops_dev.sentinelops_dev.turbofan_rul_demo_payload`,
   is kept.
