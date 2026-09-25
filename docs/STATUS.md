@@ -1,6 +1,6 @@
 # Build status
 
-Last verified: September 25, 2026, 16:00 UTC (agent deployment: the OSHA assistant on a scale-to-zero serving endpoint with the Review App, regression-checked).
+Last verified: September 25, 2026, 16:25 UTC (agent deployment: the OSHA assistant served with the Review App, regression-checked, endpoint deleted afterwards).
 
 **At a glance.**
 
@@ -13,11 +13,10 @@ Last verified: September 25, 2026, 16:00 UTC (agent deployment: the OSHA assista
   push; prod is deploy-only behind a required reviewer. [CICD.md](CICD.md).
 - **Live state (read-only checks):** no active job runs, no classic clusters,
   no Event Hubs namespace or secret scopes, no Vector Search endpoints, and
-  all pipelines IDLE. The starter warehouse is STOPPED (2X-Small, 5-minute
-  auto-stop). `@champion` is v3 (READY). **One custom serving endpoint:**
-  `sentinelops-osha-agent` (the OSHA agent, Small CPU, scale-to-zero, so
-  idle costs nothing after 30 minutes), kept for the Review App until you say
-  to delete it.
+  all pipelines IDLE, and no custom serving endpoints (the OSHA agent's
+  endpoint was deleted at 16:20 UTC after you used the Review App). The
+  starter warehouse is STOPPED (2X-Small, 5-minute auto-stop). `@champion`
+  is v3 (READY).
 - **Local tooling:** Windows Application Control started blocking
   `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
   06:26 UTC. Tests and Python scripts can't run locally until you allow it;
@@ -89,7 +88,7 @@ cost or prerequisites, with the reason given.
 | Larger answer evaluation (eval v2) | Done (60 held-out questions) | 58/60 correct decisions; the model declined 20 of 21 unanswerable questions above the threshold. **One answer named an employer** (a masking gap); `osha-answer-eval-v2.json` |
 | Employer-name masking gap | Done | Masking v2 (landing `osha_sir/v2`): capitalized leading-name leaks 37 → 0; 140 documents re-embedded; no employer names in 76 answers; 13/16 held-out identity requests declined. `osha-masking-v2.json` |
 | Structured extraction scored against OSHA codes | Done | GPT-OSS-120B matches a supervised TF-IDF model on event, nature and body part (0.935/0.943/0.948) but trails on source (0.760 vs 0.825); `osha-extraction-eval.json` |
-| Agent deployment / review app | Done (name scan pending) | `osha_assistant` v1 on endpoint `sentinelops-osha-agent` (Model Serving, `agents.deploy`, scale-to-zero, Review App). Regression through the endpoint: the same decisions as in-process on the identity (13/16 declined) and eval v2 (59/60) sets. Endpoint kept until you say delete; `osha-agent-deployment.json` |
+| Agent deployment / review app | Done (name scan pending) | `osha_assistant` v1 on endpoint `sentinelops-osha-agent` (Model Serving, `agents.deploy`, scale-to-zero, Review App). Regression through the endpoint: the same decisions as in-process on the identity (13/16 declined) and eval v2 (59/60) sets. You used the Review App; the endpoint was then deleted (57 min). `osha-agent-deployment.json` |
 
 ### Analytics and delivery
 
@@ -132,9 +131,11 @@ evidence [osha-agent-deployment.json](osha-agent-deployment.json).
   decisions and citations as in-process on all 16 identity questions (13
   declined) and 59/60 on eval v2 (the same `v2_injection` miss). Top-1 scores
   moved by up to 0.0025 (single REST embeddings vs batched `ai_query`).
+- **Review App, then cleanup:** you used the Review App; the endpoint was
+  deleted at 16:20 UTC after 57 minutes. The model and the inference table
+  stay, and `osha_agent_deploy` brings the agent back in about 10 minutes.
 - **Pending:** the employer-name scan of the endpoint's answers (local Python
-  is blocked), and deleting the endpoint when you're done with the Review
-  App.
+  is blocked).
 - **Cost:** ≈ CAD 1.0–1.3 (jobs ~0.6, endpoint ≤ 0.4, tokens and judges
   ~0.3).
 

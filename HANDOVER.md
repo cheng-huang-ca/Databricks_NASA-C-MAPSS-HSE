@@ -1,6 +1,6 @@
 # SentinelOps — handover for the next session
 
-Last updated: September 25, 2026, 16:00 UTC. Git `main` holds every milestone
+Last updated: September 25, 2026, 16:25 UTC. Git `main` holds every milestone
 up to `142676d`. Two pull requests wait for the user to merge, in order:
 [PR #1](https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE/pull/1)
 (task F, branch `retrain-refreshes-marts`) and
@@ -14,14 +14,7 @@ where GitHub Actions deploys staging and prod. See section 6.
 Do these before starting any task, in order. All are free and read-only
 except where marked.
 
-1. **The agent endpoint `sentinelops-osha-agent` is live (scale-to-zero)**,
-   kept for the Review App until the user says to delete it. Check that it
-   still scales to zero (`serving-endpoints get`: every
-   `served_entities[].scale_to_zero_enabled` true). Ask whether the user is
-   done with it; delete it only on their word (`databricks
-   serving-endpoints delete sentinelops-osha-agent`, or
-   `agents.delete_deployment`). Keep the model and the inference table.
-2. **Settle PRs #1 and #2.** Check them with the public API (no token, 60
+1. **Settle PRs #1 and #2.** Check them with the public API (no token, 60
    requests/hour):
 
    ```powershell
@@ -37,7 +30,7 @@ except where marked.
      user's** click. Record the runs in `docs/followups-f.json` /
      `docs/osha-agent-deployment.json` and STATUS. Offer to delete the merged
      branches (ask first).
-3. **Check the local Python.** Run `.venv/Scripts/python.exe -m pytest -q`
+2. **Check the local Python.** Run `.venv/Scripts/python.exe -m pytest -q`
    (expect 131 passed).
    - **If it works, run the pending name scan first:**
      `python scripts/scan_answer_names.py artifacts/agent/agent-endpoint-report.json`
@@ -50,9 +43,10 @@ except where marked.
    - Until then, use the Databricks CLI, the Azure CLI, git and PowerShell
      (`Invoke-RestMethod`, `ConvertFrom-Json`). Tests run in GitHub Actions on
      every code push and pull request.
-4. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
-   no custom endpoints except `sentinelops-osha-agent` (until deleted), no
-   Event Hubs namespace, no secret scopes. Then the posted-cost check.
+3. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
+   no custom endpoints (the agent's was deleted at 16:20 UTC on September
+   25), no Event Hubs namespace, no secret scopes. Then the posted-cost
+   check.
    - Record the final September 25 figure in STATUS ("Cost and runtime
      controls"). September 24 closed at CAD 14.14, as `system.billing`
      predicted.
@@ -63,7 +57,7 @@ except where marked.
      both.
    - The credits expire **October 10, 2026**: finish billable work before
      then.
-5. **Ask the user which remaining task to do next** (section 3: E ML depth,
+4. **Ask the user which remaining task to do next** (section 3: E ML depth,
    the rest of F, the D follow-ups; then G, the demo script and write-up,
    last). State costs and approvals up front, as every milestone has.
 
@@ -95,9 +89,10 @@ work lands.
       v2 fixed;
     - identity check: no employer names in 76 answers, and 13 of 16 identity
       requests declined.
-  - **Deployed agent** (PR #2): `osha_assistant` v1 on the scale-to-zero
-    endpoint `sentinelops-osha-agent` with the Review App. Through the
-    endpoint it made the same decisions as in-process (name scan pending).
+  - **Deployed agent** (PR #2, a bounded demo): `osha_assistant` v1 on a
+    scale-to-zero endpoint with the Review App. Through the endpoint it made
+    the same decisions as in-process (name scan pending). The endpoint was
+    deleted after the user used the Review App.
 - **Self-service analytics:** two AI/BI dashboards and a Genie space, all
   bundle resources, fed by the `analytics_refresh` job.
 - **REST API ingestion** (Open-Meteo weather, job `weather_ingest`):
@@ -135,7 +130,7 @@ work lands.
   - the starter SQL warehouse is 2X-Small with a 5-minute auto-stop;
   - `system.billing` is readable (about 4 h behind, vs about 9 for Azure).
 
-**Next task:** section 0 (the live agent endpoint, PRs #1 and #2), then the
+**Next task:** section 0 (PRs #1 and #2, the pending name scan), then the
 user's choice among E ML depth, the rest of F and the D follow-ups. G, the
 demo script and write-up, comes last.
 
@@ -268,7 +263,7 @@ then run in the cloud. Finish with the checklist in section 7.
 | A | REST API ingestion | Done (Open-Meteo weather) | About CAD 1 for the backfill; reruns make no API calls |
 | B | Event Hubs (Kafka endpoint) streaming demo | Done (bounded; namespace deleted) | ≤ CAD 0.35 of Event Hubs plus ~0.3 of serverless |
 | C | Environments and CI/CD (staging/prod, service principals, GitHub, OIDC) | Done (run `36098067567`) | ≈ CAD 0.3–0.5 of serverless per deploying push (staging ingest and verify) |
-| D | Agent deployment and Review App | Done (endpoint kept until the user says delete; name scan pending) | ≈ CAD 1.0–1.3; the endpoint costs nothing idle after 30 minutes |
+| D | Agent deployment and Review App | Done (endpoint deleted after the Review App; name scan pending) | ≈ CAD 1.0–1.3 |
 | E | Optional ML depth: FD002–FD004, tuning, `mlflow.evaluate`, sequence baseline, Lakehouse Monitoring | Landing upload (FD002–4); monitoring (billable) | Serverless minutes; monitoring has a 2× DBU multiplier |
 | F | Small follow-ups (below) | Partly done (retrain refresh, billing access, branch protection, PR validation, scratch cleanup) | Cents |
 | G | Demo script and portfolio write-up (last) | Publishing externally: yes | Free |
@@ -361,8 +356,12 @@ In short:
 - Result: the same decisions and citations as in-process (identity 13/16
   declined; eval v2 59/60).
 
+The endpoint was deleted at 16:20 UTC on September 25, after the user used
+the Review App (57 minutes of life). To demo it again (for G), run
+`osha_agent_deploy` (≈ 10 minutes to READY; it refuses an always-on
+endpoint), then delete it the same day with the user's OK.
+
 Still open:
-- **Delete the endpoint** when the user says (section 0).
 - **Name scan** of the endpoint's answers, once local Python works (section
   0).
 - **Second layer:** decline any draft that tries to name a masked
@@ -651,12 +650,11 @@ their principal. Staging's `cmapss_ingest` is `487600401912875` (run
 - The Event Hubs namespace `evhns-sentinelops-7s5fwy` (02:23–03:06 UTC,
   September 25) and the secret scope `sentinelops-eventhubs` were deleted.
   The `Microsoft.EventHub` provider stays registered (free).
-- **Live serving endpoint `sentinelops-osha-agent`** (created September 25):
-  `osha_assistant` v1, Small CPU, scale-to-zero (config version 2), Review
-  App, tracing to `sentinelops-safety-rag`, AI Gateway inference table prefix
-  `osha_assistant` in `sentinelops_dev.sentinelops_dev`. Kept until the user
-  says to delete it. Model `sentinelops_dev.sentinelops_dev.osha_assistant`
-  (v1, MLflow run `2f982340…`) stays.
+- The agent endpoint `sentinelops-osha-agent` (`osha_assistant` v1, Small
+  CPU, scale-to-zero, Review App) lived 15:23–16:20 UTC on September 25 and
+  was deleted. Kept: model `sentinelops_dev.sentinelops_dev.osha_assistant`
+  (v1, MLflow run `2f982340…`) and its inference table
+  `sentinelops_dev.sentinelops_dev.osha_assistant_payload`.
 - The serving endpoint `sentinelops-rul-demo` was deleted on September 24.
   Its inference table, `sentinelops_dev.sentinelops_dev.turbofan_rul_demo_payload`,
   is kept.

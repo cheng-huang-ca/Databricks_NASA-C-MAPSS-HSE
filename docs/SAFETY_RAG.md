@@ -664,11 +664,11 @@ identical rerun succeeded.
 - The warm endpoint answered a threshold decline in 1.1 s. About 81,000
   input and 6,700 output tokens.
 
-**Review App:** open from the endpoint's page in Serving, or the
-`review_app` link in [osha-agent-deployment.json](osha-agent-deployment.json).
-After 30 idle minutes the endpoint scales to zero, so the first question
-afterwards waits for a cold start. Evidence:
-[osha-agent-deployment.json](osha-agent-deployment.json).
+**Review App and cleanup:** you tried the agent in the Review App, and the
+endpoint was deleted at 16:20 UTC, after 57 minutes. The model
+(`osha_assistant` v1) and the inference table (`osha_assistant_payload`)
+stay. To bring the agent back, run `osha_agent_deploy` (about 10 minutes to
+READY). Evidence: [osha-agent-deployment.json](osha-agent-deployment.json).
 
 ## Next steps
 
@@ -682,7 +682,8 @@ afterwards waits for a cold start. Evidence:
 5. Done: masking v2 (landing `osha_sir/v2`, re-ingested and re-embedded). No
    names appeared in 76 answers; 13 of 16 identity requests were declined.
 6. Done: Agent Framework deployment with the Review App (above); the
-   endpoint's name scan is pending, and the endpoint is deleted when you say.
+   endpoint was deleted after you used it. The name scan of its answers is
+   pending.
    - Later: the second layer, declining drafts that name a masked
      `[EMPLOYER]` (deferred so the regression compares like with like).
    - Consider a review of the residual initials and contractor names.
