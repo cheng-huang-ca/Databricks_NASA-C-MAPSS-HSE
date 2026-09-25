@@ -22,6 +22,7 @@ parser.add_argument("--schema", required=True)
 parser.add_argument("--subset", required=True)
 parser.add_argument("--fleet-split", required=True)
 parser.add_argument("--bundle-root", required=True)
+parser.add_argument("--target", required=True)  # bundle target: which Genie spaces it deploys
 parser.add_argument("--job-run-id", required=True)
 parser.add_argument("--source-root", required=True)
 args = parser.parse_args()
@@ -111,7 +112,7 @@ for path in sorted((root / "dashboards").glob("*.lvdash.json")):
     used = a.widget_columns(dashboard)
     for dataset in dashboard["datasets"]:
         run(f"{path.name.split('.')[0]}/{dataset['name']}", a.dataset_sql(dataset), used.get(dataset["name"], set()))
-spaces = yaml.safe_load((root / "resources" / "analytics.yml").read_text(encoding="utf-8"))["resources"]["genie_spaces"]
+spaces = a.genie_spaces(yaml.safe_load((root / "resources" / "analytics.yml").read_text(encoding="utf-8")), args.target)
 for space_name, space in spaces.items():
     body = json.loads(json.dumps(space["serialized_space"]).replace("${var.catalog}", args.catalog))
     for table in body["data_sources"]["tables"]:
@@ -132,6 +133,6 @@ report = {"osha_injury_facts": {"rows": facts_rows, "documents": len(documents),
           "cmapss_fleet_status": {"rows": status_rows, "champion_version": version, "risk_bands": by_band,
                                   "lowest_predicted_rul": status.nsmallest(5, "predicted_rul")[
                                       ["unit", "last_cycle", "predicted_rul", "actual_rul"]].to_dict("records")},
-          "commented_tables": sorted(a.MONITORING_COMMENTS), "query_checks": checks,
+          "commented_tables": sorted(a.MONITORING_COMMENTS), "genie_spaces": sorted(spaces), "query_checks": checks,
           "seconds": round(time.monotonic() - started, 1)}
 print(json.dumps(report, default=str))

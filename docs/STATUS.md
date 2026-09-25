@@ -16,13 +16,15 @@ Last verified: September 25, 2026, 05:50 UTC (environments and CI/CD: staging an
   endpoints, and all pipelines IDLE. The starter warehouse is STOPPED
   (2X-Small, 5-minute auto-stop). `@champion` is v3 (READY).
 - **Local tooling:** Windows Application Control started blocking
-  `.venv\Scripts\python.exe` on September 25 (~05:00 UTC). Tests and Python
-  scripts can't run locally until you allow it; CI on GitHub runs them.
-- **Cost:** September 24 closed at a projected ~CAD 14.5 (CAD 11.65 posted by
-  02:05 UTC on September 25). September 25 so far: the fixed ~1.7/day, the
-  Event Hubs demo (≤ CAD 0.35 of Event Hubs, ~0.3 of serverless) and the CI
-  runs (~0.3 of serverless). All against your credits, which expire October
-  10. See "Cost and runtime controls".
+  `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
+  06:26 UTC. Tests and Python scripts can't run locally until you allow it;
+  CI on GitHub runs them.
+- **Cost:** September 24 closed at a projected ~CAD 14.5 (CAD 13.42 posted by
+  06:27 UTC on September 25, not final). September 25 so far: the fixed
+  ~1.7/day, the Event Hubs demo (≤ CAD 0.35 of Event Hubs, ~0.3 of
+  serverless) and the CI runs (~0.3 of serverless each); only CAD 0.07 had
+  posted by 06:27 UTC, with no Event Hubs meters yet. All against your
+  credits, which expire October 10. See "Cost and runtime controls".
 - **Git:** every milestone is committed on `main` and pushed to the public
   repository https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE.
 
@@ -904,7 +906,8 @@ section is kept only so older links still resolve.
   |---|---|---|---|
   | September 23 | CAD 5.41 (final) | Serverless SQL 2.16, serverless jobs 1.85, NAT and IP 1.31 (19 h) | The projection of CAD 3–4 missed a Catalog Explorer browse at 19:23 UTC, which ran the Small warehouse for about 11 minutes (2.2 DBU) |
   | September 24 | CAD 11.65 by 02:05 UTC on September 25 (usage to ~17:00) | At 11.65 (`infra/cost-query-meters.json`): serverless jobs 3.17, serverless SQL 4.37, serverless real-time inference 2.57 (pay-per-token model calls plus the serving demo), NAT and IP 1.48. At the 8.05 posted by 16:55 UTC: serverless jobs 2.60, serverless SQL 2.42 (Catalog Explorer, 05:44), model calls 2.23, NAT and IP 0.76 | Projected ≈ CAD 13.4: the fixed remainder (~0.9), dashboards/Genie (~1.6), the serving demo and eval v2 (~2.0: serving ≤0.35, jobs ~0.5, model calls ~0.4, warehouse checks ~0.7), then masking v2 (~0.8). Over CAD 10; you approved it against credits expiring October 10. Then the weather backfill (21:51–23:50 UTC, ~CAD 0.7–1.1), so ≈ CAD 14.5. CAD 8.86 had posted by 23:55 UTC and 11.65 by 02:05 UTC on September 25. The Cost Management API returns 429 in bursts, so recheck later |
-  | September 25 | Not posted yet at 03:21 UTC | — | Projected ≈ CAD 2.5–3: the fixed ~1.7, the Event Hubs demo (namespace 02:23–03:06 UTC, ≤ 0.35 at the worst-case rate with the Kafka meter; ~0.3 of serverless). Confirm the Event Hubs meters (throughput unit, Kafka endpoint) once posted |
+  | September 24 (recheck) | CAD 13.42 by 06:27 UTC on September 25 (not final) | Serverless jobs 3.85, serverless SQL 4.72, serverless real-time inference 3.05, NAT gateway 1.55 (a full day), public IP 0.17, storage and bandwidth 0.07 | Still ~CAD 1 below the ≈ 14.5 projection; the weather backfill (21:51–23:50 UTC) probably hasn't posted. Recheck after ~12:00 UTC on September 25 |
+  | September 25 | CAD 0.07 by 06:27 UTC (not final) | NAT gateway 0.06 (about 1 hour), storage 0.01. **No Event Hubs meters yet** | Projected ≈ CAD 2.5–3: the fixed ~1.7, the Event Hubs demo (namespace 02:23–03:06 UTC, ≤ 0.35 at the worst-case rate with the Kafka meter; ~0.3 of serverless), and the CI runs (~0.3–0.5 of serverless each). Whether the "Standard Kafka Endpoint" meter billed is still unknown: check `infra/cost-query-meters.json` for Event Hubs rows after ~12:00 UTC |
 
 - **Rates** (Azure Retail Prices, `westus2`, CAD):
   - serverless jobs CAD 0.62/DBU (about 1.5 DBU per hour of job time);

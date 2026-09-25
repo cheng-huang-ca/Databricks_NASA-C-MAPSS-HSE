@@ -92,6 +92,7 @@ flowchart LR
     P --> S[score with @champion]
     S --> M[monitor]
     M --> A[alerts]
+    M --> R[analytics: run analytics_refresh]
 ```
 
 - **Train only on change.** `train_medallion.py --only-if-changed` computes
@@ -111,6 +112,18 @@ flowchart LR
   change the digests, which would trigger false retrains. So each step decides
   for itself in the same pinned environment, and a skipped step still
   succeeds.
+- **Dashboard marts refresh in the same run.** The `analytics` task runs the
+  `analytics_refresh` job (a `run_job_task`, so the job is defined once), which
+  rebuilds `gold.cmapss_fleet_status` from the current `@champion`. Before
+  this, a promotion left the fleet dashboard showing the old version until
+  someone ran the refresh by hand. It depends on `monitor`, beside `alerts`
+  rather than after it: a threshold breach can't leave the marts stale, and a
+  failed dashboard SQL check can't suppress an alert. Either failure fails the
+  run.
+- **Limitation (environments):** `analytics_refresh` also rebuilds the OSHA
+  mart, and only dev has OSHA data, so in staging or prod the `analytics` task
+  fails. CI never runs `cmapss_retrain` there (staging runs only ingest and
+  verify; prod is deploy-only).
 - **Limitation:** `verify` asserts the FD001 benchmark's exact row counts. That
   is right for this static dataset, but a pipeline receiving genuinely new
   data needs growth rules there, or the chain stops at `verify`.

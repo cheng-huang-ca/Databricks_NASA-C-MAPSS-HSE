@@ -25,11 +25,16 @@ def test_every_job_is_manual_standard_single_run_bounded_and_not_retried():
 
 def test_retraining_chain_runs_in_order_and_retrains_only_on_change():
     job = dict(jobs())["cmapss_retrain"]
-    keys = [task["task_key"] for task in job["tasks"]]
-    assert keys == ["ingest", "verify", "train", "promote", "score", "monitor", "alerts"]
-    for previous, task in zip(job["tasks"], job["tasks"][1:]):
-        assert task["depends_on"] == [{"task_key": previous["task_key"]}] and "run_if" not in task
-    parameters = {task["task_key"]: task.get("spark_python_task", {}).get("parameters", []) for task in job["tasks"]}
+    tasks = {task["task_key"]: task for task in job["tasks"]}
+    chain = ["ingest", "verify", "train", "promote", "score", "monitor", "alerts"]
+    assert list(tasks) == [*chain, "analytics"]
+    for previous, key in zip(chain, chain[1:]):
+        assert tasks[key]["depends_on"] == [{"task_key": previous}] and "run_if" not in tasks[key]
+    # The marts refresh beside alerts: a breach can't leave them stale, and a failed dashboard
+    # check can't suppress an alert. The refresh job is reused, not copied.
+    assert tasks["analytics"]["depends_on"] == [{"task_key": "monitor"}] and "run_if" not in tasks["analytics"]
+    assert tasks["analytics"]["run_job_task"] == {"job_id": "${resources.jobs.analytics_refresh.id}"}
+    parameters = {key: task.get("spark_python_task", {}).get("parameters", []) for key, task in tasks.items()}
     assert "--only-if-changed" in parameters["train"] and "--only-pending" in parameters["promote"]
     assert {p["name"]: p["default"] for p in job["parameters"]}["force_retrain"] == "false"
     assert job["timeout_seconds"] >= sum(task["timeout_seconds"] for task in job["tasks"])

@@ -137,14 +137,15 @@ resources:
         - environment_key: ml
           spec: *ml_environment
     # Manual only. The orchestrated path: ingest -> verify -> train -> promote -> score ->
-    # monitor -> alerts, as one job so nothing reads Gold while an ingestion update writes it.
-    # train runs only when the Gold training inputs differ from the champion's (or with
-    # force_retrain=true); promote evaluates only an undecided @challenger. alerts fails the run
-    # when a monitoring threshold is breached.
+    # monitor -> alerts (and analytics beside it), as one job so nothing reads Gold while an
+    # ingestion update writes it. train runs only when the Gold training inputs differ from the
+    # champion's (or with force_retrain=true); promote evaluates only an undecided @challenger.
+    # alerts fails the run when a monitoring threshold is breached. analytics needs the OSHA Gold
+    # tables, so outside dev the run fails there.
     cmapss_retrain:
       name: sentinelops-cmapss-retrain
       max_concurrent_runs: 1
-      timeout_seconds: 5400
+      timeout_seconds: 6300
       performance_target: STANDARD
       parameters:
         - name: force_retrain
@@ -291,6 +292,17 @@ resources:
               - --source-root
               - ${workspace.file_path}/src
           environment_key: ml
+        # Rebuilds the dashboard marts (cmapss_fleet_status follows the new @champion) as a run of
+        # analytics_refresh. It sits beside alerts, not after it: a breach can't leave the marts stale,
+        # and a failed dashboard check can't suppress an alert. Either failure fails the run.
+        - task_key: analytics
+          depends_on:
+            - task_key: monitor
+          max_retries: 0
+          disable_auto_optimization: true
+          timeout_seconds: 1200
+          run_job_task:
+            job_id: ${resources.jobs.analytics_refresh.id}
       environments:
         - environment_key: ml
           spec: *ml_environment
