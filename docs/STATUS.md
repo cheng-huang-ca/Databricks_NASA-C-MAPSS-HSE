@@ -19,12 +19,11 @@ Last verified: September 25, 2026, 07:15 UTC (small follow-ups: the analytics re
   `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
   06:26 UTC. Tests and Python scripts can't run locally until you allow it;
   CI on GitHub runs them.
-- **Cost:** September 24 closed at a projected ~CAD 14.5 (CAD 13.42 posted by
-  06:27 UTC on September 25, not final). September 25 so far: the fixed
-  ~1.7/day, the Event Hubs demo (≤ CAD 0.35 of Event Hubs, ~0.3 of
-  serverless) and the CI runs (~0.3 of serverless each); only CAD 0.07 had
-  posted by 06:27 UTC, with no Event Hubs meters yet. All against your
-  credits, which expire October 10. See "Cost and runtime controls".
+- **Cost:** September 24 closed at **CAD 14.14** (near final), as
+  `system.billing` predicted. September 25: CAD 1.78 posted by 14:25 UTC,
+  projected ≈ 3–3.5. Event Hubs has billed only ingress events (CAD 0.0005)
+  so far; no Kafka-endpoint charge yet. All against your credits, which
+  expire October 10. See "Cost and runtime controls".
 - **Git:** every milestone is committed on `main` and pushed to the public
   repository https://github.com/cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE.
 
@@ -946,8 +945,8 @@ section is kept only so older links still resolve.
   |---|---|---|---|
   | September 23 | CAD 5.41 (final) | Serverless SQL 2.16, serverless jobs 1.85, NAT and IP 1.31 (19 h) | The projection of CAD 3–4 missed a Catalog Explorer browse at 19:23 UTC, which ran the Small warehouse for about 11 minutes (2.2 DBU) |
   | September 24 | CAD 11.65 by 02:05 UTC on September 25 (usage to ~17:00) | At 11.65 (`infra/cost-query-meters.json`): serverless jobs 3.17, serverless SQL 4.37, serverless real-time inference 2.57 (pay-per-token model calls plus the serving demo), NAT and IP 1.48. At the 8.05 posted by 16:55 UTC: serverless jobs 2.60, serverless SQL 2.42 (Catalog Explorer, 05:44), model calls 2.23, NAT and IP 0.76 | Projected ≈ CAD 13.4: the fixed remainder (~0.9), dashboards/Genie (~1.6), the serving demo and eval v2 (~2.0: serving ≤0.35, jobs ~0.5, model calls ~0.4, warehouse checks ~0.7), then masking v2 (~0.8). Over CAD 10; you approved it against credits expiring October 10. Then the weather backfill (21:51–23:50 UTC, ~CAD 0.7–1.1), so ≈ CAD 14.5. CAD 8.86 had posted by 23:55 UTC and 11.65 by 02:05 UTC on September 25. The Cost Management API returns 429 in bursts, so recheck later |
-  | September 24 (recheck) | CAD 13.42 by 06:27 UTC on September 25 (not final) | Serverless jobs 3.85, serverless SQL 4.72, serverless real-time inference 3.05, NAT gateway 1.55 (a full day), public IP 0.17, storage and bandwidth 0.07 | Still ~CAD 1 below the ≈ 14.5 projection; the weather backfill (21:51–23:50 UTC) probably hasn't posted. Recheck after ~12:00 UTC on September 25 |
-  | September 25 | CAD 0.07 by 06:27 UTC (not final) | NAT gateway 0.06 (about 1 hour), storage 0.01. **No Event Hubs meters yet** | Projected ≈ CAD 2.5–3: the fixed ~1.7, the Event Hubs demo (namespace 02:23–03:06 UTC, ≤ 0.35 at the worst-case rate with the Kafka meter; ~0.3 of serverless), and the CI runs (~0.3–0.5 of serverless each). Whether the "Standard Kafka Endpoint" meter billed is still unknown: check `infra/cost-query-meters.json` for Event Hubs rows after ~12:00 UTC |
+  | September 24 (recheck) | **CAD 14.14** by 14:25 UTC on September 25 (near final) | Serverless jobs 4.57, serverless SQL 4.72, serverless real-time inference 3.05, NAT gateway 1.56, public IP 0.17, storage and bandwidth 0.07 | Matches the ≈ CAD 14.1 that `system.billing` DBUs predicted, and the ≈ 14.5 projection. Over the CAD 10 guide, as you approved against the credits. (13.42 had posted by 06:27 UTC) |
+  | September 25 | CAD 1.78 by 14:25 UTC (not final) | Serverless jobs 1.06 (to ~05:00), NAT gateway 0.57, public IP 0.06, Event Hubs "Standard Ingress Events" 0.0005, Service Bus messaging 0.00 | Projected ≈ CAD 3–3.5: the fixed ~1.7, the Event Hubs demo, three CI runs and the PR's merge (~0.3–0.5 of serverless each), the dev retrain (~0.4–0.6), predictive optimization (~0.5). **Kafka meter:** no "Standard Kafka Endpoint" charge had posted by 14:35 UTC, but neither had the throughput-unit charge, so recheck both before calling it |
 
 - **Rates** (Azure Retail Prices, `westus2`, CAD):
   - serverless jobs CAD 0.62/DBU (about 1.5 DBU per hour of job time);
@@ -974,9 +973,15 @@ section is kept only so older links still resolve.
     CAD rates above): jobs and pipelines 7.33 DBU ≈ 4.54, SQL 4.87 ≈ 4.72,
     serving and AI Gateway 31.45 ≈ 3.05, plus NAT and IP ~1.72, ≈ **CAD
     14.1** in total. Azure had posted 13.42.
-  - It also shows **predictive optimization** DBUs (0.40, 0.15 and 0.33 on
-    September 23, 24 and 25, ≈ CAD 0.1–0.25/day), although `sentinelops_dev`
-    and the CI catalogs have it off. Not yet traced to a catalog.
+  - It also shows **predictive optimization** DBUs: 0.40, 0.15 and 0.88
+    (September 25 to 09:00 UTC, ≈ CAD 0.55) on September 23, 24 and 25,
+    rising with the number of pipelines. The three SentinelOps catalogs have
+    it off; the metastore default is on, inherited by the workspace default
+    catalog (`dbw_sentinelops_dev`, no tables) and presumably by
+    `__databricks_internal`, where pipelines keep internal state tables. The
+    billing rows carry no table (`usage_metadata` is empty; `run_as` is a
+    Databricks-managed identity). Tracing it per table needs read access to
+    `system.storage.predictive_optimization_operations_history` (ask first).
 
 The local benchmark demonstrates predictive performance on simulated engines.
 It is not evidence of reduced real-world downtime or an operational safety system.

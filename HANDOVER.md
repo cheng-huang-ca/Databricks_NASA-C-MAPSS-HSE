@@ -39,13 +39,14 @@ except where marked.
 3. **Run the section 1 inventory:** nothing running, the warehouse STOPPED,
    no custom endpoints, no Event Hubs namespace, no secret scopes. Then the
    posted-cost check.
-   - Record the final September 24 and 25 figures in STATUS ("Cost and
-     runtime controls"). At 06:27 UTC on September 25, Azure had posted CAD
-     13.42 for the 24th; `system.billing` put it at ≈ CAD 14.1.
-   - **Still unanswered:** did the "Standard Kafka Endpoint" meter bill
-     during the Event Hubs demo (02:23–03:06 UTC, September 25)? No Event
-     Hubs meters had posted by 06:27 UTC. Check `infra/cost-query-meters.json`
-     after ~12:00 UTC on the 25th.
+   - Record the final September 25 figure in STATUS ("Cost and runtime
+     controls"). September 24 closed at CAD 14.14, as `system.billing`
+     predicted.
+   - **Still open:** did the "Standard Kafka Endpoint" meter bill during the
+     Event Hubs demo (02:23–03:06 UTC, September 25)? By 14:35 UTC only
+     "Standard Ingress Events" (CAD 0.0005) had posted, with no Kafka and no
+     throughput-unit rows. Rerun `infra/cost-query-meters.json` and look for
+     both.
    - The credits expire **October 10, 2026**: finish billable work before
      then.
 4. **Ask the user which remaining task to do next** (section 3: D agent
@@ -377,15 +378,21 @@ Done on September 25:
 - `system.billing` read access, through a new metastore admin group (section
   5). A same-day usage view: query `system.billing.usage` with a one-off
   `jobs submit` (see STATUS, "Cost and runtime controls").
-- The two scratch diagnostics were deleted (the empty
-  `sentinelops-scratch` folder now holds only `billing_check.py`, the
-  one-off billing query).
+- The two scratch diagnostics were deleted. The `sentinelops-scratch` folder
+  now holds only this session's one-off queries: `billing_check.py` (runs
+  `839204309723200`) and `po_check.py` (predictive optimization, run
+  `621385307062519`).
 
 Still open:
-- Trace the **predictive optimization** DBUs in `system.billing` (about CAD
-  0.1–0.25/day, although the SentinelOps catalogs have it off). Reading
-  `system.storage.predictive_optimization_operations_history` needs a grant
-  on `system.storage`; ask first.
+- Trace the **predictive optimization** DBUs in `system.billing` (0.88 DBU,
+  ≈ CAD 0.55, on September 25 by 09:00 UTC; rising with the pipeline count).
+  The SentinelOps catalogs have it off, the metastore default is on, the
+  billing rows name no table, and the default catalog `dbw_sentinelops_dev`
+  has no tables, so the suspect is pipeline state in `__databricks_internal`.
+  Reading `system.storage.predictive_optimization_operations_history` needs
+  a grant on `system.storage`; ask first. Don't change the metastore default
+  without checking whether other workspaces (for example
+  `rg-equity-silver-mlops`) share this metastore.
 - The eval v2 misses: the injection-injury retrieval miss (few matching
   narratives), and the robbery answer key (assaults vs shootings).
 - A masking review of residual initials ("G&H [EMPLOYER]") and contractor

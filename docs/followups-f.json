@@ -53,5 +53,9 @@
     "unexplained": "PREDICTIVE_OPTIMIZATION DBUs: 0.40 (Sep 23), 0.15 (Sep 24), 0.33 (Sep 25 to 03:00), although the SentinelOps catalogs have it off"
   },
   "workspace_cleanup": {"deleted": ["sentinelops-scratch/diagnose_ai_query.py", "sentinelops-scratch/diagnose_embedding.py"],
-                        "added": ["sentinelops-scratch/billing_check.py (the one-off billing query)"]}
+                        "added": ["sentinelops-scratch/billing_check.py (the one-off billing query)",
+                                  "sentinelops-scratch/po_check.py (predictive optimization billing rows, run 621385307062519: usage_metadata empty, run_as a Databricks-managed identity; 0.40/0.15/0.88 DBU on Sep 23/24/25 to 09:00 UTC)"]},
+  "costs": {"september_24_posted_cad": 14.14, "posted_at_utc": "2026-09-25 14:25",
+            "september_25_event_hubs_by_14_35_utc": {"Standard Ingress Events": 0.0005, "Service Bus Standard Messaging Operations": 0.0,
+                                                     "Standard Kafka Endpoint": "not posted", "Standard Throughput Unit": "not posted"}}
 }
