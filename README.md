@@ -122,6 +122,10 @@ this timeout reduces exposure but is not a hard billing cap.
    source, scored against OSHA's codes (harmonized across OSHA's 2024 coding
    change). With no training labels, GPT-OSS-120B matches a supervised TF-IDF
    model on three fields (≈ 0.94 accuracy) but trails on source (0.76 vs 0.83).
+   The assistant is also deployed as an agent: an MLflow `ResponsesAgent` on a
+   scale-to-zero Model Serving endpoint with the Review App. Rerunning the
+   identity and v2 question sets through the endpoint gave the same decisions
+   and citations as in-process.
    See [docs/SAFETY_RAG.md](docs/SAFETY_RAG.md). Data courtesy of the U.S.
    Department of Labor (OSHA); no endorsement implied.
 4. Self-service analytics. Done: two AI/BI dashboards (Fleet health, Safety

@@ -1,20 +1,23 @@
 # Build status
 
-Last verified: September 25, 2026, 07:15 UTC (small follow-ups: the analytics refresh inside `cmapss_retrain`, pull-request validation, branch protection, `system.billing` access).
+Last verified: September 25, 2026, 16:00 UTC (agent deployment: the OSHA assistant on a scale-to-zero serving endpoint with the Review App, regression-checked).
 
 **At a glance.**
 
-- **Progress:** 34 of 40 tracked tasks are done. The rest are optional (agent
-  deployment, ML depth, Lakehouse Monitoring) or last (the demo script and
-  write-up); 4 are not started and 2 are deferred.
+- **Progress:** 35 of 40 tracked tasks are done. The rest are optional (ML
+  depth, Lakehouse Monitoring) or last (the demo script and write-up); 4 are
+  not started and 1 is deferred.
 - **Environments:** `dev` (developer), `staging` and `prod` (each deployed and
   run by its own service principal through GitHub Actions with Databricks
   OIDC, no secrets). Staging ingests and verifies C-MAPSS on every deploying
   push; prod is deploy-only behind a required reviewer. [CICD.md](CICD.md).
 - **Live state (read-only checks):** no active job runs, no classic clusters,
-  no Event Hubs namespace or secret scopes, no Vector Search or custom serving
-  endpoints, and all pipelines IDLE. The starter warehouse is STOPPED
-  (2X-Small, 5-minute auto-stop). `@champion` is v3 (READY).
+  no Event Hubs namespace or secret scopes, no Vector Search endpoints, and
+  all pipelines IDLE. The starter warehouse is STOPPED (2X-Small, 5-minute
+  auto-stop). `@champion` is v3 (READY). **One custom serving endpoint:**
+  `sentinelops-osha-agent` (the OSHA agent, Small CPU, scale-to-zero, so
+  idle costs nothing after 30 minutes), kept for the Review App until you say
+  to delete it.
 - **Local tooling:** Windows Application Control started blocking
   `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
   06:26 UTC. Tests and Python scripts can't run locally until you allow it;
@@ -86,13 +89,13 @@ cost or prerequisites, with the reason given.
 | Larger answer evaluation (eval v2) | Done (60 held-out questions) | 58/60 correct decisions; the model declined 20 of 21 unanswerable questions above the threshold. **One answer named an employer** (a masking gap); `osha-answer-eval-v2.json` |
 | Employer-name masking gap | Done | Masking v2 (landing `osha_sir/v2`): capitalized leading-name leaks 37 → 0; 140 documents re-embedded; no employer names in 76 answers; 13/16 held-out identity requests declined. `osha-masking-v2.json` |
 | Structured extraction scored against OSHA codes | Done | GPT-OSS-120B matches a supervised TF-IDF model on event, nature and body part (0.935/0.943/0.948) but trails on source (0.760 vs 0.825); `osha-extraction-eval.json` |
-| Agent deployment / review app | Deferred | Optional; unblocked by masking v2. Check serving cost first, scale-to-zero only, your approval |
+| Agent deployment / review app | Done (name scan pending) | `osha_assistant` v1 on endpoint `sentinelops-osha-agent` (Model Serving, `agents.deploy`, scale-to-zero, Review App). Regression through the endpoint: the same decisions as in-process on the identity (13/16 declined) and eval v2 (59/60) sets. Endpoint kept until you say delete; `osha-agent-deployment.json` |
 
 ### Analytics and delivery
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (123) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
+| Unit tests (131) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
 | Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
 | GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json`. Pull-request path proven by PR #1 (run `36104902332`: tests, then validation as the staging principal via the `pull_request` subject) |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
@@ -104,7 +107,38 @@ deployment and small follow-ups, in any order → demo script and write-up
 (last). The budget alert, dashboards/Genie, serving demo, eval v2, masking v2,
 REST API ingestion, the Event Hubs demo and CI/CD are done.
 
-## Current milestone: small follow-ups (task F)
+## Current milestone: agent deployment (task D)
+
+Your choices (September 25): Model Serving through `agents.deploy()`,
+scale-to-zero, the endpoint kept until you say to delete it, the second
+safety layer deferred, and the name scan left until local Python works.
+Details: [SAFETY_RAG.md](SAFETY_RAG.md#deployed-agent-model-serving-agent-framework);
+evidence [osha-agent-deployment.json](osha-agent-deployment.json).
+
+- **Packaging** (`osha_agent_log`, run `838941933038146`): the evaluated
+  assistant, unchanged, as an MLflow `ResponsesAgent` with the index and
+  report text as artifacts (≈ 145 MB). The threshold recalibrated to 0.6511,
+  the evaluated value. Registered `osha_assistant` v1; the version reloaded
+  from the registry passed a two-question smoke test.
+- **Deployment** (`osha_agent_deploy`, run `1016924296649877`, after one
+  internal library-installation failure): endpoint `sentinelops-osha-agent`
+  READY in about 9 minutes, with the Review App, tracing to
+  `sentinelops-safety-rag` and an inference table. No monitoring judges run.
+  - It came up **always-on**: `agents.deploy()` ignores
+    `scale_to_zero_enabled` (its flag is `scale_to_zero`). It was switched to
+    scale-to-zero in place about 4 minutes after it was ready, and the job
+    now refuses an always-on endpoint.
+- **Regression** (`osha_agent_eval`, run `197582367273355`): the same
+  decisions and citations as in-process on all 16 identity questions (13
+  declined) and 59/60 on eval v2 (the same `v2_injection` miss). Top-1 scores
+  moved by up to 0.0025 (single REST embeddings vs batched `ai_query`).
+- **Pending:** the employer-name scan of the endpoint's answers (local Python
+  is blocked), and deleting the endpoint when you're done with the Review
+  App.
+- **Cost:** ≈ CAD 1.0–1.3 (jobs ~0.6, endpoint ≤ 0.4, tokens and judges
+  ~0.3).
+
+## Earlier milestone: small follow-ups (task F)
 
 Your choices (September 25): the analytics refresh inside retraining,
 placed beside the alerts; the change through a pull request; branch

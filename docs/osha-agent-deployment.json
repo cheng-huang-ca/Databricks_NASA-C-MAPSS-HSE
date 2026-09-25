@@ -1,0 +1,54 @@
+{
+  "milestone": "OSHA assistant deployed as an agent (Model Serving, Agent Framework, Review App)",
+  "recorded": "2026-09-25",
+  "choices": {"platform": "Model Serving via databricks.agents.deploy (Databricks now recommends Databricks Apps for new agents)",
+              "scale_to_zero": true, "endpoint_lifetime": "kept until the user says to delete it",
+              "second_layer": "deferred (decline drafts naming a masked [EMPLOYER])",
+              "name_scan": "pending: scripts/scan_answer_names.py needs local Python, which Windows Application Control blocks"},
+  "package": {
+    "job": "osha_agent_log (52194206909988)", "run_id": 838941933038146, "result": "SUCCESS", "minutes": 8.0,
+    "model": "sentinelops_dev.sentinelops_dev.osha_assistant", "version": 1, "mlflow_run_id": "2f982340d68b407e9c1078440d9080e5",
+    "config": {"chat_endpoint": "databricks-gpt-oss-120b", "embedding_endpoint": "databricks-qwen3-embedding-0-6b",
+               "dimensions": 256, "k": 8, "min_score": 0.6511, "max_tokens": 2048, "reasoning_effort": "low",
+               "prompt_version": "osha-answer-prompt-v3"},
+    "threshold_note": "recalibrated on never-evaluated questions with the evaluation's rule: 0.6511, the evaluated value",
+    "artifact_mb": {"index_vectors": 103.5, "index_ids": 0.8, "documents": 40.5}, "documents": 105993,
+    "smoke_after_reloading_from_registry": [{"question": "dev_press_brake", "status": "answered", "top1_score": 0.7456},
+                                            {"question": "dev prompt-injection probe", "status": "declined_low_similarity", "top1_score": 0.5902}]
+  },
+  "deploy": {
+    "job": "osha_agent_deploy (147905461503892)",
+    "attempts": [{"run_id": 932698603305169, "result": "INTERNAL_ERROR", "error": "Unexpected error during library installation (environment with databricks-agents==1.12.0); no endpoint created"},
+                 {"run_id": 1016924296649877, "result": "SUCCESS", "utc": "15:19:34-15:33:31", "note": "identical rerun; endpoint READY after ~9 min"}],
+    "endpoint": "sentinelops-osha-agent", "served_entity": "sentinelops_dev-sentinelops_dev-osha_assistant_1", "workload": "CPU Small",
+    "scale_to_zero_incident": {
+      "what": "the job passed scale_to_zero_enabled=True, which agents.deploy accepted silently and ignored (its flag is scale_to_zero, default False), so the endpoint came up always-on",
+      "fix": "serving-endpoints update-config with the same entity, version and environment_vars plus scale_to_zero_enabled=true: config version 2, rolled out 15:37:46 UTC without downtime",
+      "exposure": "always-on for roughly 15:24-15:37 UTC (provisioning included): cents",
+      "prevention": "deploy_osha_agent.py passes scale_to_zero=True and fails if any served entity doesn't scale to zero; a test pins it"
+    },
+    "set_up_by_deploy": ["Review App", "real-time tracing to the sentinelops-safety-rag experiment (MLFLOW_EXPERIMENT_ID)",
+                         "AI Gateway inference table prefix osha_assistant in sentinelops_dev.sentinelops_dev",
+                         "a system service principal with query access to the two declared endpoints (automatic authentication passthrough)"],
+    "not_enabled": "production-monitoring scorers (they run only when registered and started)"
+  },
+  "regression": {
+    "job": "osha_agent_eval (1009782069371084)", "run_id": 197582367273355, "result": "SUCCESS", "utc": "15:38:12-15:52:08",
+    "mlflow_run_id": "696792c611ae4aa1a00332437ac95f77", "eval_fingerprint": "8d05f71f4b6d", "served_min_score": 0.6511,
+    "warm_up": {"status": "declined_low_similarity", "seconds": 1.1},
+    "eval_v3_identity": {"questions": 16, "declined": 13, "declined_by_model": 10, "declined_by_threshold": 3,
+                         "answered": ["id_bobcat_foot", "id_mixer_flash_fire", "id_trailer_inspection"],
+                         "vs_in_process_run_731577238433197": "same status and same citations for all 16; top-1 cosine differs by at most 0.0025"},
+    "eval_v2": {"questions": 60, "correct_decisions": 59, "wrong": ["v2_injection"],
+                "vs_in_process_rerun": "same: 59/60 with the same miss; input tokens 62,984 vs 62,983",
+                "answerable_judges": {"correctness": 0.917, "retrieval_groundedness": 0.958, "relevance_to_query": 0.958, "scored": 24},
+                "draft_citation_valid_rate": 1.0, "mean_citation_coverage": 0.986},
+    "tokens": {"input": 80752, "output": 6727},
+    "embedding_difference": "the endpoint embeds each question alone over REST; the evaluations batched them through ai_query. Top-1 scores moved by up to 0.0025 (batched inference numerics, likely), so a question within ~0.003 of the threshold could decide differently. id_burned_worker_name: 0.6516 in-process, 0.6521 served, threshold 0.6511",
+    "name_scan": "pending (the full report with answers is kept locally in git-ignored artifacts/agent/)"
+  },
+  "review_app": "https://adb-7405619144539463.3.azuredatabricks.net/ml/review-v2/63d0cd0a5098446fadd5d36a2be6c470/chat?o=7405619144539463",
+  "cost_estimate_cad": {"jobs": "log ~0.12, deploy ~0.3 (both attempts), eval ~0.2", "endpoint": "<= ~0.4 (Small CPU, up to 4 DBU/h at CAD 0.097 while up; scales to zero after 30 idle minutes)",
+                        "tokens": "generation ~0.02, ~228 judge calls ~0.3", "total": "~CAD 1.0-1.3",
+                        "note": "estimates; system.billing can confirm per endpoint and job run once posted (~4 h)"}
+}
