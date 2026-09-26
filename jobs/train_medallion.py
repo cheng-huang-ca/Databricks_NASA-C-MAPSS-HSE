@@ -7,6 +7,10 @@ mixed reads, and logged digests record exactly what was used.
 With --only-if-changed (the orchestrated cmapss_retrain job), training is skipped when
 the Gold training inputs have the same digests the @champion was trained on, unless
 --force-retrain is true. Unchanged data would otherwise register an identical version.
+
+--tuning cv searches hyperparameters with engine-grouped CV on the fit engines only
+(sentinelops.model.tune) and evaluates the untouched validation engines with
+mlflow.models.evaluate; --tuning leaves is the original three-candidate selection.
 """
 import argparse
 import json
@@ -21,6 +25,9 @@ parser.add_argument("--schema", required=True)
 parser.add_argument("--subset", required=True)
 parser.add_argument("--only-if-changed", action="store_true")
 parser.add_argument("--force-retrain", default="false", choices=["true", "false"])
+parser.add_argument("--tuning", required=True, choices=["leaves", "cv"])
+parser.add_argument("--candidates", type=int, default=30)
+parser.add_argument("--folds", type=int, default=5)
 parser.add_argument("--source-root", required=True)
 args = parser.parse_args()
 # Serverless Python tasks execute via exec(), where __file__ is not defined.
@@ -35,9 +42,10 @@ import pandas as pd
 from pyspark.sql import SparkSession, functions as F
 
 from sentinelops.medallion import digest, endpoint_frame, training_frame
-from sentinelops.model import FEATURES, LABEL_CAP, metrics, select
+from sentinelops.model import FEATURES, LABEL_CAP, metrics, select, tune
 from sentinelops.promotion import retrain_decision
 from sentinelops.registry import SKOPS_TRUSTED_TYPES
+from sentinelops.rul_evaluation import evaluate_predictions
 
 for identifier in (args.catalog, args.schema):
     if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", identifier):
@@ -90,7 +98,10 @@ def train_and_register():
             except Exception as error:  # Lineage metadata must not mask training results.
                 mlflow.set_tag(f"lineage_error_{name}", str(error)[:500])
 
-        model, selection = select(train[FEATURES], train.rul, train.unit)
+        if args.tuning == "cv":
+            model, selection, validation = tune(train[FEATURES], train.rul, train.unit, args.candidates, args.folds)
+        else:
+            model, selection = select(train[FEATURES], train.rul, train.unit)
         prediction = model.predict(test[FEATURES])
         baseline = np.repeat(train.rul.mean(), len(test))
         report = {"dataset": "CMAPSS", "subset": args.subset, "source": "gold medallion tables", "tables": tables,
@@ -100,8 +111,13 @@ def train_and_register():
                   "model": metrics(test.rul, prediction), "constant_baseline": metrics(test.rul, baseline)}
 
         mlflow.log_params({"dataset": "CMAPSS", "subset": args.subset, "feature_source": "gold",
-                           "label_cap": LABEL_CAP, "max_leaf_nodes": selection["max_leaf_nodes"],
+                           "label_cap": LABEL_CAP, "max_leaf_nodes": selection["max_leaf_nodes"], "tuning": args.tuning,
                            **{f"digest_{name}": value for name, value in digests.items()}})
+        if args.tuning == "cv":
+            mlflow.log_params({"cv_folds": args.folds, "search_candidates": args.candidates,
+                               **{f"hgb_{name}": value for name, value in selection["params"].items()}})
+            mlflow.log_metric("cv_rmse", selection["cv_rmse"])
+            report["validation_evaluate"] = evaluate_predictions(validation, prefix="validation_")
         mlflow.log_metrics({f"test_{key}": value for key, value in report["model"].items()})
         mlflow.log_metric("validation_rmse", selection["validation_rmse"])
         mlflow.log_metric("baseline_test_rmse", report["constant_baseline"]["rmse"])

@@ -33,13 +33,13 @@ resources:
     cmapss_train:
       name: sentinelops-cmapss-train
       max_concurrent_runs: 1
-      timeout_seconds: 900
+      timeout_seconds: 1800
       performance_target: STANDARD
       tasks:
         - task_key: train_from_gold
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 900
+          timeout_seconds: 1800
           spark_python_task:
             python_file: ../jobs/train_medallion.py
             parameters:
@@ -49,6 +49,8 @@ resources:
               - ${var.schema}
               - --subset
               - FD001
+              - --tuning
+              - cv
               - --source-root
               - ${workspace.file_path}/src
           environment_key: ml
@@ -145,7 +147,7 @@ resources:
     cmapss_retrain:
       name: sentinelops-cmapss-retrain
       max_concurrent_runs: 1
-      timeout_seconds: 6300
+      timeout_seconds: 7800
       performance_target: STANDARD
       parameters:
         - name: force_retrain
@@ -160,7 +162,7 @@ resources:
         - task_key: ingest
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 1200
+          timeout_seconds: 1500
           pipeline_task:
             pipeline_id: ${resources.pipelines.cmapss_medallion.id}
             full_refresh: false
@@ -169,7 +171,7 @@ resources:
             - task_key: ingest
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 600
+          timeout_seconds: 900
           spark_python_task:
             python_file: ../jobs/verify_medallion.py
             parameters:
@@ -185,7 +187,7 @@ resources:
             - task_key: verify
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 900
+          timeout_seconds: 1800
           spark_python_task:
             python_file: ../jobs/train_medallion.py
             parameters:
@@ -195,6 +197,8 @@ resources:
               - ${var.schema}
               - --subset
               - FD001
+              - --tuning
+              - cv
               - --only-if-changed
               - --force-retrain
               - '{{job.parameters.force_retrain}}'
@@ -306,3 +310,38 @@ resources:
       environments:
         - environment_key: ml
           spec: *ml_environment
+
+# Dev-only, manual: FD001-FD004 from Gold, raw vs condition-standardized features, each tuned with
+# engine-grouped CV; the test endpoints are scored once, for the set chosen by CV. Registers
+# nothing (jobs/benchmark_subsets.py).
+targets:
+  dev:
+    resources:
+      jobs:
+        cmapss_benchmark:
+          name: sentinelops-cmapss-benchmark
+          max_concurrent_runs: 1
+          timeout_seconds: 5400
+          performance_target: STANDARD
+          tasks:
+            - task_key: benchmark
+              max_retries: 0
+              disable_auto_optimization: true
+              timeout_seconds: 5400
+              spark_python_task:
+                python_file: ../jobs/benchmark_subsets.py
+                parameters:
+                  - --catalog
+                  - ${var.catalog}
+                  - --subsets
+                  - FD001,FD002,FD003,FD004
+                  - --candidates
+                  - '20'
+                  - --folds
+                  - '5'
+                  - --source-root
+                  - ${workspace.file_path}/src
+              environment_key: ml
+          environments:
+            - environment_key: ml
+              spec: *ml_environment

@@ -41,3 +41,42 @@ def test_cached_archive_must_pass_checksum(tmp_path):
     (tmp_path / "CMAPSSData.zip").write_bytes(b"not the NASA archive")
     with pytest.raises(ValueError, match="checksum"):
         landing.prepare(tmp_path, tmp_path / "output")
+
+
+def test_v2_lands_fd002_to_fd004_with_their_own_labels_and_an_lf_manifest(tmp_path, monkeypatch):
+    source, destination = tmp_path / "source", tmp_path / "v2"
+    source.mkdir()
+
+    def extract(_):
+        for subset in landing.VERSIONS["v2"]:
+            for split in ("train", "test"):
+                (source / f"{split}_{subset}.txt").write_text(f"{subset} {split}\n")
+            (source / f"RUL_{subset}.txt").write_text("\n".join("7" for _ in range(landing.CARDINALITY[subset]["test"][1])))
+
+    class Frame:
+        def __init__(self, rows, engines):
+            self.rows, self.unit = rows, type("Unit", (), {"nunique": lambda _: engines})()
+        def __len__(self): return self.rows
+
+    def read(path):
+        split, subset = path.stem.split("_")
+        return Frame(*landing.CARDINALITY[subset][split])
+
+    monkeypatch.setattr(landing, "download", extract)
+    monkeypatch.setattr(landing, "read_trajectories", read)
+    manifest = landing.prepare(source, destination, landing.VERSIONS["v2"])
+    assert sorted(manifest["files"]) == sorted(
+        [f"trajectories/{split}_{s}.txt" for s in ("FD002", "FD003", "FD004") for split in ("train", "test")]
+        + [f"labels/{s}.json" for s in ("FD002", "FD003", "FD004")])
+    fd004 = [json.loads(line) for line in (destination / "labels/FD004.json").read_text().splitlines()]
+    assert len(fd004) == 248 and {row["subset"] for row in fd004} == {"FD004"} and fd004[-1]["unit"] == 248
+    assert b"\r" not in (destination / "manifest.json").read_bytes()
+    monkeypatch.setattr(landing, "download", lambda _: None)
+    (source / "RUL_FD003.txt").write_text("7\n" * 99)
+    with pytest.raises(ValueError, match="100 nonnegative official FD003"):
+        landing.prepare(source, tmp_path / "other", ("FD003",))
+
+
+def test_versions_partition_the_four_subsets():
+    assert [s for subsets in landing.VERSIONS.values() for s in subsets] == list(landing.CARDINALITY)
+    assert landing.VERSIONS["v1"] == ("FD001",)

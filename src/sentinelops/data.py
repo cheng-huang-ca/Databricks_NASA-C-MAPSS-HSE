@@ -11,6 +11,8 @@ import pandas as pd
 URL = "https://zenodo.org/records/15346912/files/CMAPSSData.zip?download=1"
 MD5 = "79a22f36e80606c69d0e9e4da5bb2b7a"
 COLUMNS = ["unit", "cycle"] + [f"setting_{i}" for i in range(1, 4)] + [f"sensor_{i}" for i in range(1, 22)]
+SUBSETS = ("FD001", "FD002", "FD003", "FD004")
+MEMBERS = [f"{kind}_{subset}.txt" for subset in SUBSETS for kind in ("train", "test", "RUL")] + ["readme.txt"]
 
 
 def download(destination: Path) -> Path:
@@ -27,7 +29,7 @@ def download(destination: Path) -> Path:
     if hashlib.md5(payload).hexdigest() != MD5:
         raise ValueError("Cached dataset checksum mismatch")
     with zipfile.ZipFile(io.BytesIO(payload)) as zipped:
-        for name in ("train_FD001.txt", "test_FD001.txt", "RUL_FD001.txt", "readme.txt"):
+        for name in MEMBERS:
             matches = [n for n in zipped.namelist() if Path(n).name.lower() == name.lower()]
             if len(matches) != 1:
                 raise ValueError(f"Missing or ambiguous archive member: {name}")

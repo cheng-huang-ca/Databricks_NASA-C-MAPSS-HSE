@@ -8,6 +8,8 @@ import subprocess
 import pytest
 import yaml
 
+from sentinelops.landing import VERSIONS
+
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = yaml.safe_load((ROOT / "databricks.yml").read_text())
 WORKFLOW = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
@@ -96,8 +98,12 @@ def test_each_deploy_uses_its_targets_principal_and_prod_waits_for_staging():
         "bundle deploy -t staging", "sentinelops.landing", "upload_landing.py", "run -t staging cmapss_ingest",
         "run -t staging cmapss_verify")]
     assert order == sorted(order)
-    upload = next(c for c in commands if "upload_landing.py" in c)
-    assert upload.endswith("/Volumes/sentinelops_staging/sentinelops/landing/cmapss_ingest/v1")
+    # Every landing version, each from its own prepared directory, before the ingest.
+    uploads = [(i, c) for i, c in enumerate(commands) if "upload_landing.py" in c]
+    assert [c for _, c in uploads] == [
+        f"python scripts/upload_landing.py data/landing/{v} /Volumes/sentinelops_staging/sentinelops/landing/cmapss_ingest/{v}"
+        for v in VERSIONS]
+    assert max(i for i, _ in uploads) < order[3]
     assert [s.get("run") for s in JOBS["prod"]["steps"] if "run" in s] == [
         "databricks bundle validate --strict -t prod", "databricks bundle deploy -t prod"]
 

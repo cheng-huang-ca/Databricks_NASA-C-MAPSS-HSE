@@ -1,12 +1,12 @@
 # Build status
 
-Last verified: September 25, 2026, 16:25 UTC (agent deployment: the OSHA assistant served with the Review App, regression-checked, endpoint deleted afterwards).
+Last verified: September 25, 2026, 21:39 UTC (ML depth, task E: FD002–FD004 through the medallion, condition features, tuning with engine-grouped CV, a four-subset benchmark; nothing left running).
 
 **At a glance.**
 
-- **Progress:** 35 of 40 tracked tasks are done. The rest are optional (ML
-  depth, Lakehouse Monitoring) or last (the demo script and write-up); 4 are
-  not started and 1 is deferred.
+- **Progress:** 37 of 40 tracked tasks are done. The rest: Lakehouse
+  Monitoring (optional, not started), Private Link (deferred) and the demo
+  script and write-up (last).
 - **Environments:** `dev` (developer), `staging` and `prod` (each deployed and
   run by its own service principal through GitHub Actions with Databricks
   OIDC, no secrets). Staging ingests and verifies C-MAPSS on every deploying
@@ -16,7 +16,7 @@ Last verified: September 25, 2026, 16:25 UTC (agent deployment: the OSHA assista
   all pipelines IDLE, and no custom serving endpoints (the OSHA agent's
   endpoint was deleted at 16:20 UTC after you used the Review App). The
   starter warehouse is STOPPED (2X-Small, 5-minute auto-stop). `@champion`
-  is v3 (READY).
+  is v3 (READY); the tuned v4 is `@challenger`, rejected by the gate.
 - **Local tooling:** Windows Application Control started blocking
   `.venv\Scripts\python.exe` on September 25 (~05:00 UTC), and still did at
   06:26 UTC. Tests and Python scripts can't run locally until you allow it;
@@ -55,7 +55,7 @@ cost or prerequisites, with the reason given.
 |---|---|---|
 | C-MAPSS FD001 Auto Loader + Lakeflow medallion with quarantine/conflicts | Done | Pipeline `77ecd502…`; parity verified |
 | Incremental ingestion probe and no-input rerun | Done | `medallion-probe-*.json`, `medallion-rerun-update.json` |
-| FD002–FD004 (multiple operating conditions) | Not started | Keys and `--subset` already support it; needs condition-aware features |
+| FD002–FD004 (multiple operating conditions) | Done | Landing `v2` (39 MB) through new append flows (v1 flows appended 0); 265,256 observations, 707 official labels; Gold `cmapss_condition_stats` (14 subset-conditions) and `cmapss_condition_features` (standardized per condition with training-row statistics); verify: exact per-subset counts and pandas parity for all four subsets (run `501075949480588`). CI lands both versions in staging. `ml-depth.json` |
 | REST API ingestion (Open-Meteo weather) | Done | Job `weather_ingest`: budgeted, resumable fetch of 220 raw responses into immutable landing → Auto Loader Bronze/Silver/Gold → verify against the raw files; two backfill runs, then a rerun with 0 API calls and 0 rows appended; `weather-backfill.json` |
 | Event Hubs (Kafka endpoint) streaming | Done (bounded demo) | 13,096 FD001 events replayed locally (stdlib REST producer) → Kafka endpoint → pipeline `cmapss_stream`: all bit-identical to the file-ingested observations; rerun appended 0; namespace lived 43.5 min, then deleted; `eventhubs-demo.json` |
 
@@ -70,7 +70,7 @@ cost or prerequisites, with the reason given.
 | Alerts on drift and performance tables | Done | Task `alerts` in `cmapss_retrain`: relative RMSE, age-matched PSI and freshness thresholds, logged to `gold.cmapss_alerts`; a breach fails the run (breach test run `955572570273055`). No email notification (your choice) |
 | Orchestrated retraining (ingest → verify → train → promote → score) | Done | Job `cmapss_retrain`; retrains only when the Gold training digests differ from the champion's. Unchanged-data run `599725542930474` SUCCESS in 23 min; `cmapss-retrain.json` |
 | Real-time serving demo with Gold-format features | Done | Champion v3 served with scale-to-zero: all 13,096 fleet rows bit-identical to the batch log; single-row p50 81 ms; inference table logged every request; endpoint deleted. [OPERATIONS.md](OPERATIONS.md#real-time-serving-bounded-demo), `serving-demo.json` |
-| Hyperparameter tuning, `mlflow.evaluate`, sequence baseline | Not started | |
+| Hyperparameter tuning, `mlflow.evaluate`, sequence baseline | Done (no sequence baseline, your choice) | Randomized search with engine-grouped 5-fold CV on the fit engines only; `mlflow.models.evaluate` on the untouched validation engines with the NASA score as a custom metric. Tuned FD001 v4: validation 15.02 vs v3's 14.93, so the gate kept v3 (run `785377068857998`). Benchmark (dev-only job `cmapss_benchmark`, run `877714176694280`): condition features chosen by CV on all four subsets; test RMSE FD001 18.18, FD002 27.51, FD003 19.32, FD004 29.20. `ml-depth.json` |
 | Lakehouse Monitoring inference profile | Not started (optional) | Job-computed metrics already cover the demo |
 
 ### Safety GenAI assistant (OSHA)
@@ -94,19 +94,71 @@ cost or prerequisites, with the reason given.
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (131) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
+| Unit tests (144) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
 | Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
 | GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json`. Pull-request path proven by PR #1 (run `36104902332`: tests, then validation as the staging principal via the `pull_request` subject) |
 | AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
 
-Recommended order (details in HANDOVER.md): optional ML depth, agent
-deployment and small follow-ups, in any order → demo script and write-up
-(last). The budget alert, dashboards/Genie, serving demo, eval v2, masking v2,
-REST API ingestion, the Event Hubs demo and CI/CD are done.
+Recommended order (details in HANDOVER.md): the rest of the small follow-ups
+and the agent's second safety layer, in any order → demo script and write-up
+(last). ML depth, the agent deployment, the budget alert, dashboards/Genie,
+serving demo, eval v2, masking v2, REST API ingestion, the Event Hubs demo and
+CI/CD are done.
 
-## Current milestone: agent deployment (task D)
+## Current milestone: ML depth (task E)
+
+Your choices (September 25): upload FD002–FD004 as landing `v2` and about CAD
+2–4 of serverless runs; FD002–FD004 benchmark-only (not registered, served or
+scored); the tuned FD001 challenger through the existing gate; staging lands
+both versions. No sequence baseline and no Lakehouse Monitoring. Details:
+[INGESTION.md](INGESTION.md#fd002fd004-and-operating-conditions-task-e),
+[OPERATIONS.md](OPERATIONS.md#promotion-gate-cmapss_promote); evidence
+[ml-depth.json](ml-depth.json).
+
+- **Landing and ingestion.** `v2` (FD002–FD004, 39 MB, never-overwrite upload
+  at 20:46 UTC) entered through new append flows `cmapss_lines_v2` and
+  `cmapss_labels_v2`; the v1 flows appended 0 (update `e0c8a3d2…`, run
+  `539840618391934`, 10.5 min). Silver holds 265,256 observations and 707
+  official labels; the endpoint-label expectation now checks each subset's
+  engine range.
+- **Operating conditions.** Gold `cmapss_condition_stats` (14 subset-condition
+  rows: training rows only) and `cmapss_condition_features` (sensors
+  standardized per condition, then the usual rolling features). The update
+  failed no expectations.
+- **Verify** (run `501075949480588`): both manifests' checksums, exact counts
+  per subset, pandas parity for both feature tables and the statistics, and
+  every official label. FD001's training digests are unchanged, so adding
+  subsets triggers no retrain.
+- **Tuning and the gate.** `cmapss_train --tuning cv` (run `34076441846195`):
+  30 configurations, 5-fold `GroupKFold` on the fit engines, then one score on
+  the same 20 validation engines as before; `mlflow.models.evaluate` logged
+  `validation_*` metrics and the NASA score. v4: validation RMSE 15.02 against
+  v3's 14.93 (which was chosen on those same engines), so **the gate kept v3**
+  (run `785377068857998`). v4 is better on test (18.12 vs 18.34), which by
+  rule can't count. v4 stays `@challenger`, tagged `rejected`.
+- **Benchmark** (dev-only `cmapss_benchmark`, run `877714176694280`, 30 min,
+  MLflow experiment `sentinelops-cmapss-benchmark`): per subset, both feature
+  sets tuned by CV, the lower CV RMSE chosen, test scored once.
+
+  | Subset | CV RMSE raw → condition | Test RMSE (chosen) | Constant baseline |
+  |---|---|---|---|
+  | FD001 | 17.57 → 17.54 | 18.18 | 43.07 |
+  | FD002 | 17.24 → **16.57** | 27.51 | 54.08 |
+  | FD003 | 15.78 → 15.78 | 19.32 | 45.07 |
+  | FD004 | 16.58 → **15.76** | 29.20 | 54.90 |
+
+  Condition standardization matters where there are six conditions and ties
+  where there is one. Multi-condition subsets stay hardest for a per-row
+  model; published deep sequence models report lower errors.
+- **Tests:** 144 (13 new: landing v2, condition features and the pipeline
+  contract, tuning, the benchmark's choose-before-test rule, MLflow
+  evaluation, CI uploads).
+- **Cost:** ≈ CAD 1.0–1.3 (about 72 minutes of serverless job time), within
+  the approved 2–4.
+
+## Earlier milestone: agent deployment (task D)
 
 Your choices (September 25): Model Serving through `agents.deploy()`,
 scale-to-zero, the endpoint kept until you say to delete it, the second

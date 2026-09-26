@@ -34,6 +34,9 @@ reset a pipeline checkpoint to introduce a correction.
 - Gold `cmapss_test_endpoints`: last observed test cycle joined to the official,
   uncapped endpoint label. No test labels enter features.
 
+- Gold `cmapss_condition_stats` and `cmapss_condition_features` (task E): see
+  "FD002–FD004 and operating conditions" below.
+
 Bronze is checkpointed incremental ingestion. Silver and Gold are materialized
 views with batch semantics: Lakeflow chooses incremental refresh or recomputation.
 This permits global conflict detection and correct historical windows without an
@@ -79,17 +82,26 @@ inputs naming the Gold tables, upstream quarantine/conflict counts, metrics and
 predictions, then registers a tagged UC version and moves `challenger` to it.
 Quarantined and conflicting rows never reach training.
 
+Since task E, both training jobs pass `--tuning cv`: a randomized search scored
+by engine-grouped cross-validation on the fit engines only, then one score on the
+held-out validation engines, logged with `mlflow.models.evaluate` (see
+[OPERATIONS.md](OPERATIONS.md#promotion-gate-cmapss_promote)). `--tuning leaves`
+is the original three-candidate selection.
+
 ## Cost controls
 
 The ingestion job is manual, standard performance, one concurrent run, no
-application/flow/update retries, and a 900-second overall timeout. The pipeline
+application/flow/update retries, and a 1,500-second overall timeout (900 until
+FD002–FD004 landed; it covers the STANDARD-mode wait plus the larger first
+update). The pipeline
 is triggered and has development mode explicitly disabled at the bundle preset
 level so that it does not retain development compute. There is no recurring
 schedule. These controls reduce exposure but are not a $10 hard cutoff: serverless
 scaling and delayed billing prevent a strict dollar guarantee. Review posted Azure
 costs and available Databricks usage before adding runs; stop discretionary tests
 if headroom cannot be established. The starter warehouse stays stopped.
-Verification has its own 600-second limit and does not refresh the pipeline.
+Verification has its own 900-second limit (600 before FD002–FD004) and does not
+refresh the pipeline.
 The first combined run completed ingestion but timed out during the second
 compute startup; separating the jobs avoids repeating successful ingestion.
 STANDARD mode can wait ~7 minutes for resources; ingestion runs have taken
@@ -124,6 +136,49 @@ Summarize any update's flow metrics and refresh techniques with
 `scripts/pipeline_update_evidence.py`. The CLI's `list-pipeline-events`
 leaves out event details, so use the REST events API as that script's
 docstring shows. See STATUS.md for run IDs and evidence files.
+
+## FD002–FD004 and operating conditions (task E)
+
+**Landing v2.** `python -m sentinelops.landing` now writes two immutable
+versions: `data/landing/v1` (FD001, unchanged byte for byte) and
+`data/landing/v2` (FD002–FD004: six trajectory files, three label files, 39 MB).
+Each subset's row and engine counts are pinned (`landing.CARDINALITY`), and
+manifests are written as LF bytes so Windows and CI produce identical files.
+`v2` was uploaded to dev once, with `scripts/upload_landing.py` (never
+overwrites), and CI uploads both versions to staging.
+
+**Ingestion without touching FD001's flows.** The pipeline setting
+`sentinelops.landing_later` lists later versions. Each gets its own append flows
+into the two Bronze tables (`cmapss_lines_v2`, `cmapss_labels_v2`), the masking
+v2 pattern, so the v1 flows and their checkpoints are untouched. The Silver
+endpoint-label expectation now checks each subset's engine range (100, 259, 100,
+248 test engines). FD001's Gold rows are unchanged, so its training digests are
+too: adding subsets doesn't trigger a retrain.
+
+**Operating conditions.** FD002 and FD004 mix six flight conditions, which shift
+the sensors far more than wear does. A condition is the altitude setting rounded
+half up (0, 10, 20, 25, 35 or 42 thousand feet). Within-condition spread is at
+most 0.02, and FD001 and FD003 fly only at 0.
+- Gold `cmapss_condition_stats`: per subset and condition, each model sensor's
+  mean and sample standard deviation over **training rows only** (no test rows,
+  no labels).
+- Gold `cmapss_condition_features`: each sensor standardized with those
+  statistics, then the same trailing 10-cycle means and 5-cycle differences as
+  `cmapss_features`, plus the condition. A test row in a condition with no
+  training statistics fails the update instead of being standardized with
+  nothing.
+- The statistics use all training engines, including the ones later held out
+  for validation. They're unsupervised, and this is a common simplification;
+  the validation score is marginally less independent than a per-fold
+  normalization would make it.
+
+**Verification.** `cmapss_verify` reads the landed manifests (`v1`, then `v2`),
+rechecks every checksum and asserts exact per-subset counts. For each subset it
+compares both Gold feature tables and the statistics with the pandas references
+(`sentinelops.model.features`, `sentinelops.conditions`), plus the training and
+official test labels. The standardized features allow 1e-9 for Spark and pandas
+summing in different orders. The rerun check compares counts only between runs
+with the same landing versions.
 
 ## REST API ingestion: Open-Meteo weather
 

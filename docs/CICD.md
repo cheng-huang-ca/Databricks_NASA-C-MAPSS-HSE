@@ -63,9 +63,11 @@ OAuth token (`DATABRICKS_AUTH_TYPE=github-oidc`). Databricks accepts the exchang
 - **Dev-only:** the Genie space, because it can't be created until its tables exist.
 - **Staging runs C-MAPSS end to end on every push:**
   - The workflow downloads the MD5-verified NASA archive (cached) and prepares the same landing
-    files as dev (`python -m sentinelops.landing`).
-  - It uploads them without overwriting (`scripts/upload_landing.py`: an existing file must be
-    identical), then runs `cmapss_ingest` and `cmapss_verify` as the staging principal.
+    files as dev (`python -m sentinelops.landing`): `v1` (FD001) and, since task E, `v2`
+    (FD002–FD004).
+  - It uploads both versions without overwriting (`scripts/upload_landing.py`: an existing file
+    must be identical), then runs `cmapss_ingest` and `cmapss_verify` as the staging principal.
+    The first push after task E appends FD002–FD004 through their own flows (~232,000 rows).
   - Reruns upload nothing and append nothing.
 - **Prod is deploy-only:** the jobs and pipelines exist, but no data is landed and nothing runs.
 
@@ -123,7 +125,8 @@ and the GitHub account changes.
 - **GitHub Actions:** free for public repositories.
 - **Deploys:** free.
 - **Staging ingest and verify:** about 17–30 minutes of serverless job time per code push to
-  `main` (≈ CAD 0.3–0.5). It's the main recurring cost; docs-only pushes skip it.
+  `main` (≈ CAD 0.3–0.5; with FD002–FD004, the dev run took 10.5 + 9.3 minutes, so ≈ CAD
+  0.3–0.6). It's the main recurring cost; docs-only pushes skip it.
 
 ## Commands used for setup (account admin, run once)
 
