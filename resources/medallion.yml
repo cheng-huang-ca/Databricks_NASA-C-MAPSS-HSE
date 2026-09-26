@@ -15,32 +15,34 @@ resources:
       configuration:
         sentinelops.catalog: ${var.catalog}
         sentinelops.landing: /Volumes/${var.catalog}/${var.schema}/landing/cmapss_ingest/v1
+        # FD002-FD004, each later version through its own append flow (pipelines/medallion.py).
+        sentinelops.landing_later: /Volumes/${var.catalog}/${var.schema}/landing/cmapss_ingest/v2
         pipelines.maxFlowRetryAttempts: '0'
         pipelines.numUpdateRetryAttempts: '0'
   jobs:
     cmapss_ingest:
       name: sentinelops-cmapss-ingest
       max_concurrent_runs: 1
-      timeout_seconds: 900
+      timeout_seconds: 1500
       performance_target: STANDARD
       tasks:
         - task_key: medallion
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 900
+          timeout_seconds: 1500
           pipeline_task:
             pipeline_id: ${resources.pipelines.cmapss_medallion.id}
             full_refresh: false
     cmapss_verify:
       name: sentinelops-cmapss-verify
       max_concurrent_runs: 1
-      timeout_seconds: 600
+      timeout_seconds: 900
       performance_target: STANDARD
       tasks:
         - task_key: verify
           max_retries: 0
           disable_auto_optimization: true
-          timeout_seconds: 600
+          timeout_seconds: 900
           spark_python_task:
             python_file: ../jobs/verify_medallion.py
             parameters:

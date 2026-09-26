@@ -38,6 +38,39 @@ On success it moves `@champion`, removes `@challenger`, and tags the version wit
 Validation RMSE comes from the model-selection step (fit on 80% of engines).
 It measures the training procedure on unseen engines, not the refit model.
 
+**Tuning (task E).** Up to v3, training chose among three leaf counts by their
+RMSE on the same 20 validation engines that the gate then reads, so the gate's
+number was slightly optimistic. `cmapss_train` and `cmapss_retrain` now pass
+`--tuning cv` (`sentinelops.model.tune`):
+- a randomized search over 30 of 1,728 gradient-boosting configurations
+  (learning rate, iterations, leaves, minimum leaf size, L2, feature fraction);
+- each candidate is scored by 5-fold `GroupKFold` cross-validation (engines
+  never split across folds) on the 80 fit engines only;
+- the chosen configuration is scored once on the 20 validation engines, the
+  same ones as before, so the gate still compares like with like. That is the
+  `validation_rmse` the gate reads, now unbiased;
+- `mlflow.models.evaluate` logs the same validation predictions as
+  `validation_*` metrics, with NASA's asymmetric score as a custom metric
+  (`sentinelops.rul_evaluation`). MLflow's built-in MAPE is meaningless here
+  because RUL reaches 0;
+- the model is then refit on all training engines, and the test endpoints are
+  scored for the record, never for selection.
+
+Comparing an unbiased challenger with v3's optimistic number favours the
+incumbent. The search uses scikit-learn only, with no new dependency.
+
+**First tuned run (September 25):**
+- `cmapss_train` (run `34076441846195`) registered v4 on the same Gold digests
+  as v3: CV RMSE 17.57, validation RMSE 15.02 (MAE 10.78, R² 0.870).
+- **The gate kept v3** (run `785377068857998`), because 15.02 is worse than
+  14.93 at tolerance 0.
+- v4 happens to be better on the test endpoints (18.12 vs 18.34), and that
+  can't count: the rules exist for exactly this case.
+- v4 keeps `@challenger`, tagged `rejected`, so the retrain loop won't
+  re-evaluate it.
+- The four-subset benchmark (`cmapss_benchmark`, dev-only, registers nothing)
+  is in [STATUS.md](STATUS.md#current-milestone-ml-depth-task-e).
+
 ## Fleet scoring (`cmapss_score`, task `score`)
 
 In this simulation the NASA **test engines play the in-service fleet**: their

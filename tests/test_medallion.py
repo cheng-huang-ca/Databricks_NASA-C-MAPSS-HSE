@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sentinelops.medallion import KEYS, digest, endpoint_frame, training_frame
-from sentinelops.model import FEATURES, SENSORS, features, fit, labels, select
+from sentinelops.model import FEATURES, SEARCH_SPACE, SENSORS, features, fit, labels, select, tune
 
 
 def trajectories(units=6, cycles=15):
@@ -61,3 +61,26 @@ def test_digest_depends_on_content_not_index():
     frame = pd.DataFrame({"unit": [1, 2], "value": [0.5, 1.5]})
     assert digest(frame) == digest(frame.set_axis([10, 20]))
     assert digest(frame) != digest(frame.assign(value=[0.5, 1.6]))
+
+
+def test_tuning_keeps_select_validation_engines_out_of_the_search():
+    raw = trajectories(units=10, cycles=20)
+    x, y = features(raw), labels(raw)
+    _, selected = select(x, y, raw.unit)
+    model, tuned, validation = tune(x, y, raw.unit, candidates=2, folds=2)
+    # The gate compares like with like: the same held-out engines as select().
+    assert (tuned["fit_units"], tuned["validation_units"]) == (selected["fit_units"], selected["validation_units"])
+    assert sorted(validation.unit.unique()) == tuned["validation_units"] and len(validation) == 2 * 20
+    assert tuned["validation_rmse"] == pytest.approx(np.sqrt(((validation.prediction - validation.rul) ** 2).mean()))
+    assert set(tuned["params"]) == set(SEARCH_SPACE) and tuned["max_leaf_nodes"] == tuned["params"]["max_leaf_nodes"]
+    assert model.n_features_in_ == len(FEATURES)
+    # The search is deterministic.
+    assert tune(x, y, raw.unit, candidates=2, folds=2)[1] == tuned
+
+
+def test_frames_check_the_columns_they_are_given():
+    x, y = gold(trajectories())
+    other = x.assign(extra=1.0)
+    assert list(training_frame(other, y, "FD001", [*FEATURES, "extra"]).extra.unique()) == [1.0]
+    with pytest.raises(ValueError, match="Null"):
+        training_frame(other.assign(extra=np.nan), y, "FD001", [*FEATURES, "extra"])

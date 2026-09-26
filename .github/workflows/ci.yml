@@ -104,6 +104,7 @@ jobs:
       # files already in the volume must be identical: reruns upload nothing.
       - run: python -m sentinelops.landing
       - run: python scripts/upload_landing.py data/landing/v1 /Volumes/sentinelops_staging/sentinelops/landing/cmapss_ingest/v1
+      - run: python scripts/upload_landing.py data/landing/v2 /Volumes/sentinelops_staging/sentinelops/landing/cmapss_ingest/v2
       - run: databricks bundle run -t staging cmapss_ingest
       - run: databricks bundle run -t staging cmapss_verify
 

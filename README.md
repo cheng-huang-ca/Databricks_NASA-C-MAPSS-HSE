@@ -100,7 +100,15 @@ this timeout reduces exposure but is not a hard billing cap.
      request. The endpoint was deleted afterwards.
 
    See [docs/OPERATIONS.md](docs/OPERATIONS.md).
-2. Extend training beyond FD001 using the existing composite keys.
+2. ML depth. Done: FD002–FD004 landed as a second immutable version and
+   ingested through their own append flows, with per-condition standardized
+   Gold features verified against pandas; hyperparameter tuning with
+   engine-grouped cross-validation on training engines only; and
+   `mlflow.models.evaluate` with the NASA score as a custom metric. The tuned
+   FD001 model lost to v3 on validation RMSE (15.02 vs 14.93), so the gate kept
+   v3. A dev-only benchmark (`cmapss_benchmark`) chose condition features by CV
+   on all four subsets; test RMSE 18.2 / 27.5 / 19.3 / 29.2 for FD001–FD004.
+   See [docs/STATUS.md](docs/STATUS.md#current-milestone-ml-depth-task-e).
 3. Safety assistant over OSHA Severe Injury Reports. Done: provenance, a
    privacy-minimized landing, the `osha_safety` pipeline to Gold (105,993
    documents), Qwen3 embeddings for all of them via `ai_query`, and exact

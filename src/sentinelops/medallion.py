@@ -16,14 +16,14 @@ def _one_subset(frame: pd.DataFrame, subset: str, split: str, keys: list[str]) -
     return frame
 
 
-def training_frame(features: pd.DataFrame, labels: pd.DataFrame, subset: str) -> pd.DataFrame:
+def training_frame(features: pd.DataFrame, labels: pd.DataFrame, subset: str, columns=FEATURES) -> pd.DataFrame:
     """Every training feature row must have exactly one capped label, and vice versa."""
     x = _one_subset(features, subset, "train", KEYS)
     y = _one_subset(labels, subset, "train", KEYS)
     joined = x.merge(y[[*KEYS, "rul"]], on=KEYS, how="inner", validate="one_to_one")
     if joined.empty or len(joined) != len(x) or len(joined) != len(y):
         raise ValueError(f"{subset} training features and labels do not align")
-    if joined[[*FEATURES, "rul"]].isna().any().any():
+    if joined[[*columns, "rul"]].isna().any().any():
         raise ValueError(f"Null training feature or label in {subset}")
     # Match the bootstrap row order so engine-disjoint selection is reproducible.
     return joined.sort_values(["unit", "cycle"]).reset_index(drop=True).astype({"cycle": "int64"})
@@ -35,10 +35,10 @@ def label_frame(labels: pd.DataFrame, subset: str) -> pd.DataFrame:
     return y.sort_values(["unit", "cycle"]).reset_index(drop=True).astype({"cycle": "int64"})
 
 
-def endpoint_frame(endpoints: pd.DataFrame, subset: str) -> pd.DataFrame:
+def endpoint_frame(endpoints: pd.DataFrame, subset: str, columns=FEATURES) -> pd.DataFrame:
     """One official, uncapped label per test engine at its last observed cycle."""
     test = _one_subset(endpoints, subset, "test", ENGINE)
-    if test.empty or test[[*FEATURES, "rul"]].isna().any().any():
+    if test.empty or test[[*columns, "rul"]].isna().any().any():
         raise ValueError(f"Missing {subset} test endpoint features or official labels")
     return test.sort_values("unit").reset_index(drop=True).astype({"cycle": "int64"})
 

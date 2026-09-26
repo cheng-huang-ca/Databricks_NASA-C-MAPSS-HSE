@@ -1,0 +1,440 @@
+{
+  "milestone": "ML depth (task E): FD002-FD004 through the medallion, condition-standardized features, engine-grouped CV tuning, mlflow.models.evaluate, a four-subset benchmark",
+  "recorded": "2026-09-25",
+  "choices": {
+    "approved": "the FD002-FD004 landing upload (39 MB) and about CAD 2-4 of serverless runs",
+    "subset_models": "benchmark only: FD002-FD004 are trained, tuned and evaluated but not registered, served or scored; FD001's @champion stays the operational model",
+    "champion": "the tuned FD001 challenger goes through cmapss_promote, which decides",
+    "staging": "CI lands and ingests v1 and v2, so staging matches dev",
+    "not_done": [
+      "sequence baseline (torch is a heavy dependency)",
+      "Lakehouse Monitoring (2x DBUs plus warehouse time; the job-computed metrics cover the demo)"
+    ],
+    "no_new_dependency": "tuning uses scikit-learn's RandomizedSearchCV with GroupKFold, not Optuna"
+  },
+  "landing_v2": {
+    "prefix": "/Volumes/sentinelops_dev/sentinelops_dev/landing/cmapss_ingest/v2",
+    "uploaded_utc": "2026-09-25 20:46",
+    "script": "scripts/upload_landing.py (never overwrites)",
+    "files": 10,
+    "bytes": 39216744,
+    "contents": "train/test trajectories and official labels for FD002, FD003 and FD004, plus manifest.json (LF bytes)",
+    "v1_unchanged": "the local v1 trajectory and label files were byte-identical before and after preparing v2 (SHA-256)"
+  },
+  "local_rehearsal": {
+    "tests": "144 passed (131 before task E)",
+    "benchmark": {
+      "candidates": 20,
+      "folds": 5,
+      "machine": "12 cores",
+      "minutes": 16,
+      "note": "pandas-computed features, so the cloud run on Spark Gold features can differ slightly",
+      "chosen_by_cv": {
+        "FD001": "condition",
+        "FD002": "condition",
+        "FD003": "condition",
+        "FD004": "condition"
+      },
+      "cv_rmse_raw_vs_condition": {
+        "FD001": [
+          17.51,
+          17.48
+        ],
+        "FD002": [
+          17.23,
+          16.58
+        ],
+        "FD003": [
+          15.83,
+          15.76
+        ],
+        "FD004": [
+          16.58,
+          15.77
+        ]
+      },
+      "test_rmse": {
+        "FD001": 18.37,
+        "FD002": 27.51,
+        "FD003": 20.56,
+        "FD004": 29.12
+      }
+    }
+  },
+  "ingest": {
+    "job": "cmapss_ingest (264959928637120)",
+    "run_id": 539840618391934,
+    "result": "SUCCESS",
+    "utc": "20:47:22-20:57:50",
+    "pipeline_update": "e0c8a3d2-8a94-4bbb-bccb-a960558fe6c9",
+    "flows": {
+      "bronze.cmapss_lines (v1 flow)": {
+        "refresh": "STREAMING_APPEND",
+        "output_rows": 0
+      },
+      "bronze.cmapss_labels (v1 flow)": {
+        "refresh": "STREAMING_APPEND",
+        "output_rows": 0
+      },
+      "bronze.cmapss_lines_v2": {
+        "refresh": "STREAMING_APPEND",
+        "output_rows": 231529
+      },
+      "bronze.cmapss_labels_v2": {
+        "refresh": "STREAMING_APPEND",
+        "output_rows": 607
+      },
+      "silver.cmapss_observations": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "output_rows": 265256,
+        "dropped_by_valid_trajectory": 5
+      },
+      "silver.cmapss_endpoint_labels": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "output_rows": 707,
+        "official_label_failed": 0,
+        "one_label_per_engine_failed": 0
+      },
+      "gold.cmapss_features": {
+        "refresh": "WINDOW_FUNCTION",
+        "output_rows": 265256
+      },
+      "gold.cmapss_training_labels": {
+        "refresh": "WINDOW_FUNCTION",
+        "output_rows": 160359
+      },
+      "gold.cmapss_test_endpoints": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "output_rows": 707
+      },
+      "gold.cmapss_condition_stats": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "output_rows": 14
+      },
+      "gold.cmapss_condition_features": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "output_rows": 265256,
+        "standardized_with_training_statistics_failed": 0
+      }
+    },
+    "note": "the v1 flows appended nothing, so their checkpoints were untouched; the quality probe's 5 invalid rows and 1 conflict are the permanent v1 probe"
+  },
+  "verify": {
+    "job": "cmapss_verify (366011234786265)",
+    "run_id": 501075949480588,
+    "result": "SUCCESS",
+    "utc": "20:58:31-21:07:49",
+    "landing_versions": [
+      "v1",
+      "v2"
+    ],
+    "counts": {
+      "bronze.cmapss_lines": 265265,
+      "bronze.cmapss_labels": 707,
+      "silver.cmapss_observations": 265256,
+      "silver.cmapss_quarantine": 5,
+      "silver.cmapss_conflicts": 1,
+      "silver.cmapss_endpoint_labels": 707,
+      "gold.cmapss_features": 265256,
+      "gold.cmapss_training_labels": 160359,
+      "gold.cmapss_test_endpoints": 707,
+      "gold.cmapss_condition_stats": 14,
+      "gold.cmapss_condition_features": 265256
+    },
+    "subsets": {
+      "FD001": {
+        "rows": 33727,
+        "conditions": 1
+      },
+      "FD002": {
+        "rows": 87750,
+        "conditions": 6
+      },
+      "FD003": {
+        "rows": 41316,
+        "conditions": 1
+      },
+      "FD004": {
+        "rows": 102463,
+        "conditions": 6
+      }
+    },
+    "feature_parity": true,
+    "condition_feature_parity": true,
+    "official_endpoint_labels": true,
+    "quality_probe": true,
+    "verified_runs": 5
+  },
+  "fd001_tuned_training": {
+    "job": "cmapss_train (477632929595835)",
+    "run_id": 34076441846195,
+    "result": "SUCCESS",
+    "utc": "21:08:19-21:20:59",
+    "mlflow_run_id": "1fb7b097e461479482a2b219f69ed09a",
+    "registered_version": 4,
+    "alias": "challenger",
+    "digests": {
+      "features": "efdbf289f866a12d",
+      "training_labels": "bd98d8c49e59152c",
+      "test_endpoints": "d11a9f153d9624c1"
+    },
+    "digests_vs_v3": "identical: adding FD002-FD004 left FD001's Gold rows unchanged",
+    "search": {
+      "candidates": 30,
+      "folds": 5,
+      "cv": "GroupKFold on the 80 fit engines",
+      "space": "1,728 combinations (sentinelops.model.SEARCH_SPACE)"
+    },
+    "chosen_params": {
+      "learning_rate": 0.02,
+      "max_iter": 200,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 100,
+      "l2_regularization": 1.0,
+      "max_features": 0.8
+    },
+    "cv_rmse": 17.573,
+    "validation_rmse": 15.0154,
+    "mlflow_models_evaluate_validation": {
+      "example_count": 4070,
+      "root_mean_squared_error": 15.0154,
+      "mean_absolute_error": 10.7754,
+      "r2_score": 0.8704,
+      "max_error": 57.23,
+      "nasa_score": 16701.06,
+      "note": "MAPE (1.996e14) is logged by MLflow's default regressor evaluator but meaningless: RUL reaches 0"
+    },
+    "test_for_the_record": {
+      "rmse": 18.1159,
+      "mae": 13.111,
+      "nasa_score": 637.97,
+      "v3_test_rmse": 18.3415,
+      "note": "never used for selection or promotion"
+    }
+  },
+  "gate": {
+    "job": "cmapss_promote (714826690927619)",
+    "run_id": 785377068857998,
+    "result": "SUCCESS",
+    "utc": "21:21:37-21:30:51",
+    "challenger": 4,
+    "champion_before": 3,
+    "promoted": false,
+    "champion_after": 3,
+    "challenger_validation_rmse": 15.0154,
+    "champion_validation_rmse": 14.9309,
+    "validation_baseline_rmse": 41.7208,
+    "tolerance": 0.0,
+    "reasons": [
+      "validation RMSE 15.0154 is worse than champion v3 (14.9309) beyond tolerance 0.0"
+    ],
+    "reading": "v3's number was chosen on these same 20 validation engines (three leaf counts, optimistic); v4's was never seen by its search. The gate compares them as recorded and keeps v3. v4 is better on the test endpoints (18.12 vs 18.34), which by rule can't be used. v4 keeps @challenger with promotion_decision=rejected, so cmapss_retrain's --only-pending skips it",
+    "retrain_loop": "not run: it was budgeted only for a promotion; scoring and monitoring have nothing new to do with v3 still champion"
+  },
+  "benchmark": {
+    "job": "cmapss_benchmark (719323099800427, dev-only)",
+    "run_id": 877714176694280,
+    "result": "SUCCESS",
+    "utc": "21:08:43-21:38:42",
+    "setup_minutes": 3.2,
+    "execution_minutes": 26.7,
+    "mlflow": {
+      "experiment": "/Users/<developer>/sentinelops-cmapss-benchmark",
+      "parent_run_id": "54f1f97d11494f4f96727ca72dc3dfe0",
+      "nested_runs": "one per subset: chosen params, both sets' CV and validation RMSE, mlflow.models.evaluate validation_* metrics, test metrics, report.json, test_predictions.csv"
+    },
+    "protocol": "per subset and feature set: 20 candidates x 5-fold GroupKFold on the fit engines; the set with the lower CV RMSE is chosen; its untouched validation engines are evaluated; its final model (refit on all training engines) scores the official test endpoints once. Nothing is registered",
+    "subsets": {
+      "FD001": {
+        "train_units": 100,
+        "test_units": 100,
+        "train_rows": 20631,
+        "cv_rmse": {
+          "raw": 17.573,
+          "condition": 17.5426
+        },
+        "validation_rmse": {
+          "raw": 15.0154,
+          "condition": 14.992
+        },
+        "chosen_by_cv": "condition",
+        "chosen_params": {
+          "min_samples_leaf": 100,
+          "max_leaf_nodes": 7,
+          "max_iter": 200,
+          "max_features": 0.8,
+          "learning_rate": 0.02,
+          "l2_regularization": 1.0
+        },
+        "validation_evaluate": {
+          "example_count": 4070,
+          "rmse": 14.992,
+          "mae": 10.7685,
+          "r2": 0.8708,
+          "nasa_score": 16576.2
+        },
+        "test_once": {
+          "rmse": 18.1824,
+          "mae": 13.1567,
+          "nasa_score": 654.3613
+        },
+        "constant_baseline_test": {
+          "rmse": 43.067,
+          "mae": 35.9,
+          "nasa_score": 33629.2306
+        },
+        "digests": {
+          "features": "a187e2ad4965e404",
+          "training_labels": "bd98d8c49e59152c",
+          "test_endpoints": "750dddbbffa78321"
+        },
+        "seconds": 298.9
+      },
+      "FD002": {
+        "train_units": 260,
+        "test_units": 259,
+        "train_rows": 53759,
+        "cv_rmse": {
+          "raw": 17.2351,
+          "condition": 16.5694
+        },
+        "validation_rmse": {
+          "raw": 16.4798,
+          "condition": 16.0433
+        },
+        "chosen_by_cv": "condition",
+        "chosen_params": {
+          "min_samples_leaf": 100,
+          "max_leaf_nodes": 7,
+          "max_iter": 200,
+          "max_features": 0.8,
+          "learning_rate": 0.05,
+          "l2_regularization": 10.0
+        },
+        "validation_evaluate": {
+          "example_count": 10295,
+          "rmse": 16.0433,
+          "mae": 11.0925,
+          "r2": 0.8526,
+          "nasa_score": 66874.3
+        },
+        "test_once": {
+          "rmse": 27.5074,
+          "mae": 19.3669,
+          "nasa_score": 9708.3537
+        },
+        "constant_baseline_test": {
+          "rmse": 54.083,
+          "mae": 45.6358,
+          "nasa_score": 153229.2594
+        },
+        "digests": {
+          "features": "6705d23c81f500a6",
+          "training_labels": "1d752e67a8e17967",
+          "test_endpoints": "20a10166e824db42"
+        },
+        "seconds": 403.2
+      },
+      "FD003": {
+        "train_units": 100,
+        "test_units": 100,
+        "train_rows": 24720,
+        "cv_rmse": {
+          "raw": 15.7841,
+          "condition": 15.7821
+        },
+        "validation_rmse": {
+          "raw": 14.5007,
+          "condition": 14.3384
+        },
+        "chosen_by_cv": "condition",
+        "chosen_params": {
+          "min_samples_leaf": 100,
+          "max_leaf_nodes": 15,
+          "max_iter": 200,
+          "max_features": 0.5,
+          "learning_rate": 0.05,
+          "l2_regularization": 0.1
+        },
+        "validation_evaluate": {
+          "example_count": 4708,
+          "rmse": 14.3384,
+          "mae": 9.1602,
+          "r2": 0.8776,
+          "nasa_score": 32725.0
+        },
+        "test_once": {
+          "rmse": 19.3238,
+          "mae": 14.4972,
+          "nasa_score": 1001.5809
+        },
+        "constant_baseline_test": {
+          "rmse": 45.0695,
+          "mae": 38.003,
+          "nasa_score": 57949.6372
+        },
+        "digests": {
+          "features": "b02dcfc8dc477434",
+          "training_labels": "626050f62bc077b5",
+          "test_endpoints": "c3b1a57a03ca8330"
+        },
+        "seconds": 285.6
+      },
+      "FD004": {
+        "train_units": 249,
+        "test_units": 248,
+        "train_rows": 61249,
+        "cv_rmse": {
+          "raw": 16.5826,
+          "condition": 15.7625
+        },
+        "validation_rmse": {
+          "raw": 20.6726,
+          "condition": 19.6408
+        },
+        "chosen_by_cv": "condition",
+        "chosen_params": {
+          "min_samples_leaf": 100,
+          "max_leaf_nodes": 15,
+          "max_iter": 200,
+          "max_features": 0.5,
+          "learning_rate": 0.05,
+          "l2_regularization": 0.1
+        },
+        "validation_evaluate": {
+          "example_count": 11955,
+          "rmse": 19.6408,
+          "mae": 13.0501,
+          "r2": 0.7691,
+          "nasa_score": 122871.0
+        },
+        "test_once": {
+          "rmse": 29.1975,
+          "mae": 21.9129,
+          "nasa_score": 6166.7766
+        },
+        "constant_baseline_test": {
+          "rmse": 54.902,
+          "mae": 46.7527,
+          "nasa_score": 189682.8175
+        },
+        "digests": {
+          "features": "b0a26ba3a6ab3fe1",
+          "training_labels": "c5808998006f2bc7",
+          "test_endpoints": "5489e466ee8bcc54"
+        },
+        "seconds": 407.5
+      }
+    },
+    "reading": [
+      "Condition standardization wins clearly by CV where there are six operating conditions (FD002 16.57 vs 17.24, FD004 15.76 vs 16.58) and ties where there is one (FD001, FD003), as expected: for a single condition it is an affine rescaling, which trees ignore.",
+      "Test RMSE: FD001 18.18, FD002 27.51, FD003 19.32, FD004 29.20; each constant baseline is 43-55. Multi-condition subsets stay hardest for a per-row gradient-boosting model; published deep sequence models report lower errors, and no sequence baseline was built here.",
+      "FD003 differed from the local rehearsal (19.32 vs 20.56): Spark and pandas features differ by ~1e-12, which changed the CV winner. The same sensitivity as v3 vs v2; Gold features are the source of truth.",
+      "FD001 in the benchmark (condition set, validation 14.99) is not a candidate for promotion: only cmapss_train registers, and only on the Gold feature contract."
+    ]
+  },
+  "costs": {
+    "estimate_cad": "about 1.0-1.3: roughly 72 minutes of serverless job time (ingest 10.5, verify 9.3, train 12.7, gate 9.2, benchmark 30) at ~1.5 DBU/h and CAD 0.62/DBU, within the approved CAD 2-4",
+    "note": "estimate; system.billing and Azure post later"
+  }
+}
