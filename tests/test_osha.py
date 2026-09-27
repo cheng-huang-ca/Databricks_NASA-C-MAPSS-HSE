@@ -97,4 +97,48 @@ def test_masking_v2_catches_shortened_employer_names_without_masking_ordinary_wo
 def test_common_words_count_lowercase_uses_only():
     narratives = ["The auger caught him.", "An auger turned.", "Zorbex auger.", "Zorbex hired him."]
     assert osha.common_words(narratives, 3) == frozenset({"auger"})  # "Zorbex" is never lowercase
-    assert osha.minimize(reports())[1]["masking_version"] == "v2"
+    assert osha.minimize(reports())[1]["masking_version"] == "v3"
+    assert osha.minimize(reports(), masking_version="v2")[1]["masking_version"] == "v2"
+
+
+def test_masking_v3_absorbs_only_own_employer_fragments_next_to_the_mask():
+    common = frozenset({"worker", "crew"})
+    # Fictional names. v2 masks "Zorbex" but leaves the spaced initials before it.
+    employer = "G&H Zorbex Machining, Inc."
+    narrative = "An employee of G & H Zorbex fell."
+    assert osha.mask(narrative, employer, [], common=common)[0] == "An employee of G & H [EMPLOYER] fell."
+    assert osha.mask(narrative, employer, [], common=common, fragments=True)[0] == "An employee of [EMPLOYER] fell."
+    assert osha.absorb_fragments("J.B. [EMPLOYER] crew", "J B Zorbex LLC") == ("[EMPLOYER] crew", 1)
+    assert osha.absorb_fragments("[EMPLOYER] Machining staff", employer) == ("[EMPLOYER] staff", 1)
+    # Repeats until nothing changes: both fragments go.
+    assert osha.absorb_fragments("G&H Machining [EMPLOYER]", employer) == ("[EMPLOYER]", 2)
+    # Left alone: other letters, other companies' words, lowercase words, business words and states.
+    for text, name in [("OSHA [EMPLOYER] inspected", "J B Zorbex LLC"), ("Acme [EMPLOYER] crew", employer),
+                       ("the [EMPLOYER] crew", "The Zorbex Group"), ("[EMPLOYER] Company staff", "Zorbex Company"),
+                       ("Workers in Texas [EMPLOYER] fell", "Texas Zorbex"), ("A [EMPLOYER] crew", "A Zorbex")]:
+        assert osha.absorb_fragments(text, name) == (text, 0), text
+
+
+def test_prepare_delta_lands_only_changed_reports(tmp_path, monkeypatch):
+    buffer = io.BytesIO()
+    frame = pd.concat([reports(UPA="1", Employer="G&H Zorbex Machining, Inc.",
+                               **{"Final Narrative": "An employee of G & H Zorbex fell."}),
+                       reports(UPA="2", EventDate="3/1/2016")])
+    with zipfile.ZipFile(buffer, "w") as zipped:
+        zipped.writestr(osha.MEMBER, frame.to_csv(index=False))
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / osha.ARCHIVE).write_bytes(buffer.getvalue())
+    monkeypatch.setattr(osha, "SHA256", hashlib.sha256(buffer.getvalue()).hexdigest())
+    monkeypatch.setattr(osha, "COMMON_MIN_DOCUMENTS", 50)
+    osha.prepare(source, tmp_path / "v2", masking_version="v2")
+    manifest = osha.prepare_delta(source, tmp_path / "v2", tmp_path / "v3")
+    assert list(manifest["files"]) == ["reports/changed.jsonl"]
+    assert (manifest["rows"], manifest["snapshot_rows"], manifest["delta_of"], manifest["masking_version"]) == (1, 2, "v2", "v3")
+    changed = [json.loads(line) for line in (tmp_path / "v3/reports/changed.jsonl").read_text().splitlines()]
+    assert [(r["report_id"], r["narrative"]) for r in changed] == [(1, "An employee of [EMPLOYER] fell.")]
+    assert b"\r" not in (tmp_path / "v3/manifest.json").read_bytes()
+    assert osha.prepare_delta(source, tmp_path / "v2", tmp_path / "v3") == manifest
+    (tmp_path / "v3/reports/changed.jsonl").write_text("tampered")
+    with pytest.raises(ValueError, match="immutable"):
+        osha.prepare_delta(source, tmp_path / "v2", tmp_path / "v3")

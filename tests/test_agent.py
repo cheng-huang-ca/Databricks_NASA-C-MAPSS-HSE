@@ -172,7 +172,10 @@ def test_agent_jobs_are_dev_only_and_serve_the_evaluated_configuration():
     evaluated = yaml.safe_load((ROOT / "resources" / "osha.yml").read_text())["resources"]["jobs"]["osha_answer_eval"]
 
     def params(job):
-        values = job["tasks"][0]["spark_python_task"]["parameters"]
+        """Task parameters, with {{job.parameters.x}} resolved to the job parameter's default."""
+        defaults = {p["name"]: p["default"] for p in job.get("parameters", [])}
+        values = [re.sub(r"\{\{job\.parameters\.(\w+)\}\}", lambda m: defaults[m.group(1)], str(v))
+                  for v in job["tasks"][0]["spark_python_task"]["parameters"]]
         return dict(zip(values[::2], values[1::2]))
 
     same = ("--embedding-endpoint", "--chat-endpoint", "--dimensions", "--k", "--max-tokens", "--reasoning-effort")

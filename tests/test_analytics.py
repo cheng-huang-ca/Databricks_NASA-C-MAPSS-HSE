@@ -169,3 +169,19 @@ def test_genie_space_follows_the_serialized_format_and_uses_curated_tables():
         assert a.gold_tables(sql) <= CURATED and "${var.catalog}.gold." in sql
     text = json.dumps(body)
     assert "Department of Labor" in text and "Decline requests to identify employers" in text
+    # Benchmarks: hex IDs unique across sample questions too, sorted, exactly one SQL answer each over
+    # curated tables, two phrasings per intent (the same answer), and none asked before.
+    benchmarks = body["benchmarks"]["questions"]
+    ids = [q["id"] for q in samples + benchmarks]
+    assert all(hex_id.match(i) for i in ids) and len(ids) == len(set(ids))
+    assert [q["id"] for q in benchmarks] == sorted(q["id"] for q in benchmarks)
+    answers = []
+    for question in benchmarks:
+        (answer,) = question["answer"]
+        sql = "".join(answer["content"])
+        assert answer["format"] == "SQL" and a.gold_tables(sql) <= CURATED and "${var.catalog}.gold." in sql
+        answers.append(sql)
+    assert set(answers.count(sql) for sql in answers) == {2}
+    earlier = {q for item in samples + instructions["example_question_sqls"] for q in item["question"]}
+    earlier |= {r["question"] for r in json.loads((ROOT / "docs" / "genie-evaluation.json").read_text(encoding="utf-8"))["results"]}
+    assert not {q for item in benchmarks for q in item["question"]} & earlier

@@ -122,6 +122,8 @@ for space_name, space in spaces.items():
             raise RuntimeError(f"{space_name}: {table['identifier']} has no columns {sorted(unknown)}")
     for example in body["instructions"]["example_question_sqls"]:
         run(f"genie/{space_name}/{example['id']}", "".join(example["sql"]))
+    for question in body.get("benchmarks", {}).get("questions", []):
+        run(f"genie/{space_name}/benchmark/{question['id']}", "".join(question["answer"][0]["content"]))
 
 by_band = status.risk_band.value_counts().to_dict()
 report = {"osha_injury_facts": {"rows": facts_rows, "documents": len(documents),

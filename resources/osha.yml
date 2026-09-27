@@ -15,8 +15,9 @@ resources:
       configuration:
         sentinelops.catalog: ${var.catalog}
         sentinelops.osha_landing: /Volumes/${var.catalog}/${var.schema}/landing/osha_sir/v1
-        # Masking v2 (shortened employer names); its copies supersede v1's in Silver.
-        sentinelops.osha_landing_later: /Volumes/${var.catalog}/${var.schema}/landing/osha_sir/v2
+        # Masking v2 (shortened employer names), then v3 (own-employer fragments next to the mask, a
+        # delta of the 17 reports it changes). Each has its own append flow; the latest copy wins in Silver.
+        sentinelops.osha_landing_later: /Volumes/${var.catalog}/${var.schema}/landing/osha_sir/v2,/Volumes/${var.catalog}/${var.schema}/landing/osha_sir/v3
         pipelines.maxFlowRetryAttempts: '0'
         pipelines.numUpdateRetryAttempts: '0'
   jobs:
@@ -110,6 +111,11 @@ resources:
       max_concurrent_runs: 1
       timeout_seconds: 2700
       performance_target: STANDARD
+      # Which question sets to run (comma-separated sentinelops.answer_eval.SETS names); override
+      # per run, e.g. eval_v3_identity alone for a masking regression.
+      parameters:
+        - name: question_sets
+          default: eval_v3_identity,eval_v2
       tasks:
         - task_key: evaluate
           max_retries: 0
@@ -137,7 +143,7 @@ resources:
               - --workers
               - '2'
               - --question-sets
-              - eval_v3_identity,eval_v2
+              - '{{job.parameters.question_sets}}'
               - --job-run-id
               - '{{job.run_id}}'
               - --source-root

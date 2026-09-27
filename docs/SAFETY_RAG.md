@@ -382,10 +382,26 @@ rather than the threshold.
   injection injuries at work?" retrieved explosion reports (top-1 0.6974).
   The model correctly said the reports were about explosions, not injections.
   The corpus has only ~23 injection narratives.
-- **Correctness failure, answer key vs retrieval:** for robberies, the
-  retrieved reports were assaults by robbers and shoplifters, not shootings.
-  The answer was grounded and relevant, but missed the expected fact
-  ("workers were shot"), which the keyword share had suggested.
+- **Correctness failure, a ranking miss:** for robberies, the retrieved
+  reports were assaults by robbers and shoplifters, not shootings. The answer
+  was grounded and relevant, but missed the expected fact ("workers were
+  shot").
+  - This was first read as an answer-key error. A corpus check on September
+    26 says otherwise: **39 of the 52 narratives mentioning robbery describe
+    a shooting**, so the key is well supported. Dense retrieval ranked the
+    non-shooting ones first.
+- **Both misses are retrieval ranking** (re-checked September 26, locally):
+  - for the injection question, a TF-IDF keyword ranking puts **5 injection
+    reports in its top 10**, where dense retrieval returned explosions
+    (the corpus has 311 narratives mentioning "inject", 26 of them with
+    "high pressure");
+  - a hybrid retriever (dense plus keyword, rank fusion) would likely fix
+    the injection case. The robbery case needs more than keywords: the
+    question says "robberies" and the narratives say "robbery" or
+    "robber", which TF-IDF without stemming doesn't match.
+  - **Your choice: document only.** Eval v2 stays a regression set as it
+    is, and a hybrid retriever remains an option (it would need DEV tuning
+    and a new held-out answer set).
 - **EVAL_V1 rerun (regression, not held out):** 28/28 decisions again.
   Correctness is now 12/12: v1's `conveyor_caught` judge false negative
   didn't recur, so judge and model outputs vary between runs.
@@ -429,7 +445,8 @@ nothing identifying was printed or uploaded:
   - states inside employer names ("LaGrange, [EMPLOYER]."), since excluded;
   - a few acronyms, accepted.
 - **Known residue:** initials like "G&H [EMPLOYER], Inc." remain, as do other
-  companies' names (for example contractors).
+  companies' names (for example contractors). Masking v3 (below) removed the
+  own-employer initials and name words; other companies' names remain.
 
 **Landing and pipeline:**
 
@@ -471,6 +488,52 @@ paraphrases the eval v2 leak.
   - about 228 judge calls (≈ CAD 0.3);
   - serverless: ingest 11 min, embed 6 min, eval 13 min (≈ CAD 0.5);
   - 140 document embeddings (negligible).
+
+## Masking v3: own-employer fragments (September 26)
+
+**Review.** A local scan of `osha_sir/v2` against the raw archive (counts and
+anonymized shapes only; no names printed) found the known residue:
+- **own-employer fragments right next to `[EMPLOYER]`, in about 19
+  narratives:** initials in 11 ("X&X [EMPLOYER]", "X.X. [EMPLOYER]"; all 11
+  match their employer's letters) and leftover name words in 8;
+- **other companies' names**: 155 narratives contain a phrase that starts
+  some other report's employer name, but only 16 in a company context
+  (contractor, staffing, hired by), plus 13 with an "... Inc/LLC" phrase.
+  You chose to leave these as known residue.
+
+**Rule** (`sentinelops.osha.absorb_fragments`, masking v3): a token directly
+before or after `[EMPLOYER]` joins the mask only if it is initials of
+consecutive words of **that report's** employer name ("G&H", "G & H",
+"J.B.") or a capitalized word of that name that isn't a business word or a
+state. Repeated until nothing changes. Tests use fictional names.
+
+**Rehearsal and landing:**
+- `prepare(masking_version="v2")` still reproduces landing v2 byte for byte.
+- v3 changes **17 narratives** (20 tokens absorbed, none lowercase), and no
+  own-employer fragment is left next to a mask.
+- **`osha_sir/v3` is a delta:** only the 17 changed reports, as full
+  records, in one file (14.6 KB), not a full snapshot. Silver keeps each
+  report's latest landed copy, so it supersedes exactly those reports.
+
+**Cloud** (evidence [osha-masking-v3.json](osha-masking-v3.json)):
+- `osha_ingest` (run `617668399823227`, update `dfe1ef9b…`): the v1 and v2
+  flows appended 0 and the new `osha_sir_v3` flow 17; Silver and Gold hold
+  105,993 documents.
+- `osha_embed` (run `122755636265995`): exactly the 17 changed documents
+  re-embedded, 0 stale.
+- **Identity regression** (run `473970449014711`, the identity set only,
+  through the job's new `question_sets` parameter): **14 of 16 declined**
+  (11 by the model, 3 by the threshold) and **no employer names** in the 16
+  answers (local name scan). One question flipped from answered-without-a-
+  name to declined, but its cited report wasn't one of the 17 changed:
+  run-to-run variation.
+- A first attempt with both sets (run `745849460107142`) **timed out** at 45
+  minutes: MLflow's judge scorers stalled (300-second scorer timeouts from
+  23:42 UTC), though both model endpoints answered instantly a little later.
+- **Cost:** ≈ CAD 0.8–0.9, including the timed-out attempt.
+
+The deployed agent's packaged documents (`osha_assistant` v1) still carry v2
+texts; a new agent version (with D's second layer) would pick up v3.
 
 ## Structured extraction (`osha_extraction_eval`)
 
