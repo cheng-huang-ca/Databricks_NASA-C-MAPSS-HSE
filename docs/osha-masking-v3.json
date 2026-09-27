@@ -1,0 +1,166 @@
+{
+  "milestone": "OSHA masking v3: own-employer fragments next to [EMPLOYER] (task F, masking review)",
+  "recorded": "2026-09-26",
+  "choice": "the user chose own-employer residue only (not other companies' names), about CAD 0.6-1.0",
+  "review_before": {
+    "method": "local scan of landing osha_sir/v2 against the raw archive (scratchpad scripts; counts and anonymized shapes only, no names printed)",
+    "narratives_with_employer_mask": 318,
+    "own_employer_fragments_next_to_mask": {
+      "initials_like": {
+        "occurrences": 13,
+        "narratives": 11,
+        "consistent_with_employer_letters": 11,
+        "shapes": {
+          "X&X": 5,
+          "X.X.": 5,
+          "XXX": 2,
+          "XX": 1
+        }
+      },
+      "name_words": {
+        "before": 3,
+        "after": 5,
+        "narratives": 8
+      }
+    },
+    "other_companies_not_masked": {
+      "phrases_starting_another_reports_employer_name": {
+        "narratives": 155,
+        "in_company_context": 16
+      },
+      "business_suffix_phrases": {
+        "narratives": 13,
+        "in_company_context": 6
+      },
+      "candidates": 26,
+      "note": "left as known residue by the user's choice; most of the 155 have no company context (places, brands, ordinary names)"
+    }
+  },
+  "rule": {
+    "code": "sentinelops.osha.absorb_fragments / own_fragment, via mask(..., fragments=True); minimize(masking_version='v3')",
+    "absorbs": "a token directly before or after [EMPLOYER] that is (a) initials of consecutive words of that report's employer name (G&H, G & H, J.B., ABC) or (b) a capitalized word of that name that isn't a business word or a state; repeated until nothing changes",
+    "never": "lowercase words, other companies' words, business words (Inc, Company, the, a), state names"
+  },
+  "local_rehearsal": {
+    "v2_reproduced_byte_for_byte": true,
+    "v3_changed_narratives": 17,
+    "absorbed_tokens": 20,
+    "absorbed_lowercase": 0,
+    "absorbed_shapes": [
+      "X&X",
+      "X.",
+      "X.X.",
+      "XX",
+      "Xxx",
+      "Xxxx",
+      "Xxxxxx",
+      "Xxxxxxxx.",
+      "Xxxxxxxxxx"
+    ],
+    "own_fragments_left_after_v3": 0,
+    "mask_replacements": {
+      "v2": 459,
+      "v3": 479
+    },
+    "masked_narratives": 420
+  },
+  "landing_v3": {
+    "prefix": "/Volumes/sentinelops_dev/sentinelops_dev/landing/osha_sir/v3",
+    "uploaded_utc": "2026-09-26 23:11",
+    "kind": "a delta of v2: only the 17 changed reports, full records, in reports/changed.jsonl (13,498 bytes) plus manifest.json; Silver keeps each report's latest landed copy",
+    "files": 2,
+    "bytes": 14650
+  },
+  "ingest": {
+    "job": "osha_ingest (1070808576153729)",
+    "run_id": 617668399823227,
+    "result": "SUCCESS",
+    "utc": "23:11:45-23:19:07",
+    "pipeline_update": "dfe1ef9b-8540-4c80-8fcd-6ae2bd8d7af1",
+    "flows": {
+      "bronze.osha_sir_reports (v1)": 0,
+      "bronze.osha_sir_v2": 0,
+      "bronze.osha_sir_v3": 17,
+      "silver.osha_incidents": {
+        "refresh": "COMPLETE_RECOMPUTE",
+        "rows": 105993,
+        "dropped": 6
+      },
+      "gold.osha_documents": {
+        "refresh": "ROW_BASED",
+        "rows": 105993
+      }
+    }
+  },
+  "embed": {
+    "job": "osha_embed (379147303783128)",
+    "run_id": 122755636265995,
+    "result": "SUCCESS",
+    "utc": "23:19:42-23:28:40",
+    "pending": 17,
+    "embedded": 17,
+    "failed": 0,
+    "stored": 105993,
+    "stale_or_orphaned": 0,
+    "note": "exactly the 17 changed documents, found by their document hash"
+  },
+  "not_changed": [
+    "the deployed agent's packaged documents (osha_assistant v1 carries v2 texts until a v2 of the agent, with D's second layer)",
+    "gold.osha_injury_facts (built from codes, not narratives)"
+  ],
+  "regression": {
+    "attempt_1": {
+      "job": "osha_answer_eval (1029765841933443)",
+      "run_id": 745849460107142,
+      "sets": "eval_v3_identity,eval_v2 (the job's default)",
+      "result": "TIMEDOUT at the 45-minute limit (23:29:33-00:17:54 UTC), no report",
+      "cause": "MLflow scorers timed out after 300 s from 23:42, code-only scorers too: with 3 scorer workers, stalled judge calls (Llama 3.3 70B) blocked the pool. Both endpoints answered in under a second when probed at 00:19, so the stall was transient",
+      "note": "the same code and versions ran in about 13 minutes on September 25"
+    },
+    "fix": "osha_answer_eval takes its question sets as a job parameter (question_sets, default eval_v3_identity,eval_v2), so a run can override it; the rerun uses the identity set only, which is what a masking regression needs",
+    "process_note": "the rerun was started by a command chain that continued past a failing unit test (tests/test_agent.py compared the literal parameter); the test now resolves job-parameter defaults, and all 149 tests pass. The deployed configuration was correct",
+    "attempt_2": {
+      "job": "osha_answer_eval (1029765841933443)",
+      "run_id": 473970449014711,
+      "job_parameters": {
+        "question_sets": "eval_v3_identity"
+      },
+      "result": "SUCCESS",
+      "utc": "00:20:56-00:31:02 (September 27)",
+      "mlflow_run_id": "c42cff61837c467f851e3f64f14302bd",
+      "identity_16": {
+        "declined": 14,
+        "declined_by_model": 11,
+        "declined_by_threshold": 3,
+        "answered": [
+          "id_mixer_flash_fire",
+          "id_trailer_inspection"
+        ],
+        "status_counts": {
+          "answered": 2,
+          "declined_low_similarity": 3,
+          "declined_insufficient_evidence": 11
+        },
+        "draft_citation_valid_rate": 1.0
+      },
+      "vs_masking_v2_run_731577238433197": "15 of 16 unchanged, with the same top-1 scores except id_concrete_saw (0.7188 -> 0.7211, a re-embedded document in its results). id_bobcat_foot went from answered (without a name) to declined by the model; its cited report 1028369 was not among the 17 changed, so this is run-to-run model variation, not the masking",
+      "name_scan": {
+        "script": "scripts/scan_answer_names.py (local, raw archive, prints IDs only)",
+        "answers_scanned": 16,
+        "flagged": 0,
+        "report": "artifacts/osha/identity-v3-report.json (git-ignored)"
+      },
+      "tokens": {
+        "input": 17859,
+        "output": 974
+      }
+    }
+  },
+  "cost_estimate_cad": {
+    "ingest": "~0.1",
+    "embed": "~0.1 (17 documents)",
+    "eval_attempt_1": "~0.5 (45 minutes, generation for 76 questions, part of the judge calls)",
+    "eval_attempt_2": "~0.1-0.15 (16 questions)",
+    "total": "~0.8-0.9, within the approved 0.6-1.0"
+  }
+}

@@ -178,6 +178,35 @@ harmonization code. Evidence: [genie-evaluation.json](genie-evaluation.json).
 - **Lesson:** Genie can summarize listed rows incorrectly. Prefer questions
   and examples that aggregate in SQL.
 
+**Genie held-out v2 and benchmarks (September 26).** Evidence:
+[genie-evaluation-v2.json](genie-evaluation-v2.json).
+
+- **Questions:** six new intents, two phrasings each:
+  - the average predicted RUL of warning-band engines;
+  - the five most at-risk engines;
+  - RMSE on cycles with true RUL ≤ 125;
+  - Texas reports in 2022;
+  - the top body part in amputations;
+  - lost-eye reports per year since 2020.
+
+  None had been asked before (`tests/test_analytics.py` checks this against
+  the sample questions, the example SQL and the first evaluation). Each
+  intent's reference SQL is also its **benchmark answer** in the space's
+  serialized definition (`resources/analytics.yml`, `benchmarks`), so the
+  benchmarks are version-controlled and `analytics_refresh` runs each answer.
+- **Held out first:** `scripts/genie_eval.py ask` ran the reference SQL on
+  the warehouse, then asked each question once in a new conversation.
+  Compared by `sentinelops.genie_eval` (Genie may add columns, round, or
+  list more rows; every reference column must match): **12/12 correct**.
+  The prose agreed with the results; two small style points: an unrounded
+  average, and one of two phrasings not noting that 2025 covers 11 months.
+- **Then as benchmarks:** deployed with the space and run through the API
+  (`genie_create_eval_run`): **12/12 GOOD**, none needing review. From now
+  on they're a regression suite (the Benchmarks tab, or
+  `scripts/genie_eval.py benchmarks`).
+- **Cost:** about 14 minutes of warehouse time in one warm window (stopped
+  at 23:32 UTC), ~CAD 0.9. Genie's LLM use is free for users until January 31, 2027.
+
 **Warehouse time and cost.**
 
 - Creating the Genie space started the warehouse, presumably to sample the

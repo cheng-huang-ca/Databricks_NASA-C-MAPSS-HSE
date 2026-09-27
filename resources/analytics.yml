@@ -186,3 +186,122 @@ targets:
                     - "WHERE alert_job_run = (SELECT max_by(alert_job_run, checked_at) FROM ${var.catalog}.gold.cmapss_alerts)\n"
                     - "GROUP BY alert_job_run, `check`\n"
                     - "ORDER BY `check`"
+            # Benchmarks (September 26): six intents, two phrasings each, none asked before. They were asked
+            # once through the Conversation API as a held-out set before being added here; from then on they
+            # are a regression suite (Benchmarks tab, or genie_create_eval_run). analytics_refresh runs each answer.
+            benchmarks:
+              questions:
+                - id: d0000000000000000000000000000001
+                  question: ["What is the average predicted remaining life of the engines in the warning band?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT avg(predicted_rul) AS avg_predicted_rul\n"
+                        - "FROM ${var.catalog}.gold.cmapss_fleet_status\n"
+                        - "WHERE risk_band = 'warning'"
+                - id: d0000000000000000000000000000002
+                  question: ["On average, how many cycles do warning-band engines have left?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT avg(predicted_rul) AS avg_predicted_rul\n"
+                        - "FROM ${var.catalog}.gold.cmapss_fleet_status\n"
+                        - "WHERE risk_band = 'warning'"
+                - id: d0000000000000000000000000000003
+                  question: ["Which five engines have the least predicted remaining life, and what cycle are they at?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT unit, last_cycle, predicted_rul\n"
+                        - "FROM ${var.catalog}.gold.cmapss_fleet_status\n"
+                        - "ORDER BY predicted_rul\n"
+                        - "LIMIT 5"
+                - id: d0000000000000000000000000000004
+                  question: ["List the 5 most at-risk engines with their last observed cycle."]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT unit, last_cycle, predicted_rul\n"
+                        - "FROM ${var.catalog}.gold.cmapss_fleet_status\n"
+                        - "ORDER BY predicted_rul\n"
+                        - "LIMIT 5"
+                - id: d0000000000000000000000000000005
+                  question: ["What is the current model's RMSE on cycles whose true RUL is 125 or less, in the latest snapshot?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT rmse\n"
+                        - "FROM ${var.catalog}.gold.cmapss_model_performance\n"
+                        - "WHERE segment = 'actual_le_125'\n"
+                        - "  AND model_version = (SELECT max(model_version) FROM ${var.catalog}.gold.cmapss_fleet_status)\n"
+                        - "ORDER BY computed_at DESC\n"
+                        - "LIMIT 1"
+                - id: d0000000000000000000000000000006
+                  question: ["How accurate is the champion on cycles with an actual remaining life of at most 125?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT rmse\n"
+                        - "FROM ${var.catalog}.gold.cmapss_model_performance\n"
+                        - "WHERE segment = 'actual_le_125'\n"
+                        - "  AND model_version = (SELECT max(model_version) FROM ${var.catalog}.gold.cmapss_fleet_status)\n"
+                        - "ORDER BY computed_at DESC\n"
+                        - "LIMIT 1"
+                - id: d0000000000000000000000000000007
+                  question: ["How many severe injury reports came from Texas in 2022?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE state = 'TEXAS' AND event_year = 2022"
+                - id: d0000000000000000000000000000008
+                  question: ["Count the 2022 reports for the state of Texas."]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE state = 'TEXAS' AND event_year = 2022"
+                - id: d0000000000000000000000000000009
+                  question: ["In reports with an amputation, which body part category comes up most often?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT body_part_category, count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE amputation > 0\n"
+                        - "GROUP BY body_part_category\n"
+                        - "ORDER BY reports DESC\n"
+                        - "LIMIT 1"
+                - id: d000000000000000000000000000000a
+                  question: ["What body part is most frequently involved when an amputation is reported?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT body_part_category, count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE amputation > 0\n"
+                        - "GROUP BY body_part_category\n"
+                        - "ORDER BY reports DESC\n"
+                        - "LIMIT 1"
+                - id: d000000000000000000000000000000b
+                  question: ["How many reports involved the loss of an eye in each year from 2020 on?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT event_year, count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE loss_of_eye > 0 AND event_year >= 2020\n"
+                        - "GROUP BY event_year\n"
+                        - "ORDER BY event_year"
+                - id: d000000000000000000000000000000c
+                  question: ["Per year since 2020, how many reports had a worker lose an eye?"]
+                  answer:
+                    - format: SQL
+                      content:
+                        - "SELECT event_year, count(*) AS reports\n"
+                        - "FROM ${var.catalog}.gold.osha_injury_facts\n"
+                        - "WHERE loss_of_eye > 0 AND event_year >= 2020\n"
+                        - "GROUP BY event_year\n"
+                        - "ORDER BY event_year"

@@ -1,6 +1,6 @@
 # Build status
 
-Last verified: September 25, 2026, 21:39 UTC (ML depth, task E: FD002–FD004 through the medallion, condition features, tuning with engine-grouped CV, a four-subset benchmark; nothing left running).
+Last verified: September 27, 2026, 00:32 UTC (the rest of task F: masking v3, the eval v2 misses re-diagnosed, a Genie held-out set and benchmarks; nothing left running).
 
 **At a glance.**
 
@@ -86,7 +86,7 @@ cost or prerequisites, with the reason given.
 | Grounded answers with `[report_id]` citations, abstention, MLflow tracing | Done | GPT-OSS-120B over 256-dim retrieval; code-checked citations; threshold 0.6511 + model decline; `osha-answer-eval.json` |
 | LLM-judge evaluation (correctness, groundedness, relevance) | Done (28 held-out questions) | Llama 3.3 70B judge: 28/28 correct answer/decline decisions; on answers, correctness 11/12, groundedness 12/12 |
 | Larger answer evaluation (eval v2) | Done (60 held-out questions) | 58/60 correct decisions; the model declined 20 of 21 unanswerable questions above the threshold. **One answer named an employer** (a masking gap); `osha-answer-eval-v2.json` |
-| Employer-name masking gap | Done | Masking v2 (landing `osha_sir/v2`): capitalized leading-name leaks 37 → 0; 140 documents re-embedded; no employer names in 76 answers; 13/16 held-out identity requests declined. `osha-masking-v2.json` |
+| Employer-name masking gap | Done | Masking v2 (landing `osha_sir/v2`): capitalized leading-name leaks 37 → 0; 140 documents re-embedded; no employer names in 76 answers; 13/16 held-out identity requests declined. `osha-masking-v2.json`; masking v3 (Sept 26): 17 own-employer fragments absorbed, delta landing `osha_sir/v3`, identity 14/16 declined, no names. `osha-masking-v3.json` |
 | Structured extraction scored against OSHA codes | Done | GPT-OSS-120B matches a supervised TF-IDF model on event, nature and body part (0.935/0.943/0.948) but trails on source (0.760 vs 0.825); `osha-extraction-eval.json` |
 | Agent deployment / review app | Done (name scan pending) | `osha_assistant` v1 on endpoint `sentinelops-osha-agent` (Model Serving, `agents.deploy`, scale-to-zero, Review App). Regression through the endpoint: the same decisions as in-process on the identity (13/16 declined) and eval v2 (59/60) sets. You used the Review App; the endpoint was then deleted (57 min). `osha-agent-deployment.json` |
 
@@ -94,10 +94,10 @@ cost or prerequisites, with the reason given.
 
 | Task | Status | Evidence or next action |
 |---|---|---|
-| Unit tests (144) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
+| Unit tests (149) and CI workflow | Done | Run on every pull request and code push by GitHub Actions (`.github/workflows/ci.yml`); `main` requires the `Unit tests` check (branch protection, enforced for non-admins) |
 | Git history | Done | Branch `main`, one commit per milestone, pushed to the public repository |
 | GitHub repository, CI runs, OIDC deployment to staging/prod | Done | Public repo `cheng-huang-ca/Databricks_NASA-C-MAPSS-HSE`. Run `36098067567` SUCCESS: tests → staging deploy as its principal (github-oidc) → C-MAPSS landing, ingest (`459623161285845`) and verify (`104076494798937`) in staging → prod deploy after your approval. Pinned actions, no secrets; `cicd-first-run.json`. Pull-request path proven by PR #1 (run `36104902332`: tests, then validation as the staging principal via the `pull_request` subject) |
-| AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md) |
+| AI/BI dashboards and Genie space | Done | Fleet health and Safety incidents dashboards, Genie space over 6 curated Gold tables, `analytics_refresh` job; Genie 7/8 held-out questions fully right (one miscounted summary); [ANALYTICS.md](ANALYTICS.md); held-out v2 (Sept 26): 12/12 correct, then the same 12 as version-controlled benchmarks, 12/12 GOOD (`genie-evaluation-v2.json`) |
 | SQL warehouse right-sizing | Done | Starter warehouse Small → 2X-Small, auto-stop 10 → 5 min (your approval); a wake-up now costs ~CAD 0.35, not ~2.3 |
 | Demo script and portfolio write-up | Not started | Last |
 
@@ -107,7 +107,46 @@ and the agent's second safety layer, in any order → demo script and write-up
 serving demo, eval v2, masking v2, REST API ingestion, the Event Hubs demo and
 CI/CD are done.
 
-## Current milestone: ML depth (task E)
+## Current milestone: the rest of the small follow-ups (task F)
+
+Your choices (September 26): masking v3 for own-employer residue only; the
+eval v2 misses documented only; a Genie held-out set plus benchmarks.
+
+- **Eval v2 misses, re-diagnosed (free, local).** Both are retrieval
+  ranking. For the injection question, a keyword (TF-IDF) ranking puts 5
+  injection reports in its top 10 where dense retrieval returned explosions.
+  The robbery miss is **not** an answer-key error, as first recorded: 39 of
+  the 52 robbery narratives describe a shooting. A hybrid retriever remains
+  an option. [SAFETY_RAG.md](SAFETY_RAG.md#larger-answer-evaluation-eval-v2),
+  `followups-f.json` (`rest_of_f`).
+- **Masking v3.**
+  - The review found own-employer fragments next to `[EMPLOYER]` in about 19
+    narratives, and other companies' names in about 26 (left, your choice).
+  - v3 absorbs only fragments of the report's own employer: 17 narratives,
+    landed as a delta (`osha_sir/v3`, 14.6 KB).
+  - The v3 flow appended 17, and exactly 17 documents were re-embedded.
+  - Identity regression: 14 of 16 declined, and no employer names in the
+    answers.
+  - A first eval attempt timed out (stalled judge scorers); the rerun used
+    the job's new `question_sets` parameter.
+  - [SAFETY_RAG.md](SAFETY_RAG.md#masking-v3-own-employer-fragments-september-26),
+    `osha-masking-v3.json`.
+- **Genie.**
+  - Six new intents with two phrasings each, asked once through the
+    Conversation API: **12/12 correct** on SQL results, and the prose
+    matched.
+  - They're now the space's **benchmarks** (in `resources/analytics.yml`,
+    checked by `analytics_refresh`): the first benchmark run scored **12/12
+    GOOD**.
+  - [ANALYTICS.md](ANALYTICS.md), `genie-evaluation-v2.json`.
+- **Tests:** 149 (masking v3 and its delta landing, Genie comparison and
+  benchmark hygiene).
+- **Cost:** ≈ CAD 1.8: masking v3 ≈ 0.8–0.9 (including the timed-out
+  attempt), Genie ≈ 0.9 (about 14 warehouse minutes).
+- **Still open, optional:** screenshots for the write-up; the predictive
+  optimization trace (note only).
+
+## Earlier milestone: ML depth (task E)
 
 Your choices (September 25): upload FD002–FD004 as landing `v2` and about CAD
 2–4 of serverless runs; FD002–FD004 benchmark-only (not registered, served or

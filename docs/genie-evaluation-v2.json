@@ -1,0 +1,1333 @@
+{
+ "evaluation": "Genie held-out v2 (task F), September 26, 2026",
+ "space": "01f1b8347de912dc8d94fcb07a9144ec",
+ "questions": "six intents, two phrasings each, none asked before (checked against the sample questions, example SQL and the first evaluation by tests/test_analytics.py); each intent's reference SQL is the benchmark answer in resources/analytics.yml",
+ "run_utc": "2026-09-26 23:18:16-23:22:56 (held-out ask), 23:23:31-23:26:15 (benchmark eval run after deploying the benchmarks)",
+ "tool": "scripts/genie_eval.py (Conversation API as the user; sentinelops.genie_eval.compare: reference columns must match, Genie may add columns, round, or list more rows)",
+ "method": "Conversation API, one new conversation per question, asked once; references run first on the warehouse",
+ "summary": {
+  "questions": 12,
+  "match": 12,
+  "mismatch": 0,
+  "no_result": 0
+ },
+ "results": [
+  {
+   "id": "d0000000000000000000000000000001",
+   "question": "What is the average predicted remaining life of the engines in the warning band?",
+   "reference_columns": [
+    "avg_predicted_rul"
+   ],
+   "reference_rows": [
+    [
+     "37.77149967710259"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "The average predicted remaining life for engines in the **warning** band is **37.77149967710259 cycles**. This places the warning-band fleet near the middle of the illustrative **21 to 50 cycle** planning range.",
+    "sql": "SELECT AVG(cmapss_fleet_status.predicted_rul) AS avg_predicted_rul\nFROM sentinelops_dev.gold.cmapss_fleet_status\nWHERE cmapss_fleet_status.risk_band = 'warning' AND cmapss_fleet_status.predicted_rul IS NOT NULL",
+    "columns": [
+     "avg_predicted_rul"
+    ],
+    "rows": [
+     [
+      "37.77149967710259"
+     ]
+    ],
+    "seconds": 19.3
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000002",
+   "question": "On average, how many cycles do warning-band engines have left?",
+   "reference_columns": [
+    "avg_predicted_rul"
+   ],
+   "reference_rows": [
+    [
+     "37.77149967710259"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "Warning-band engines have **37.8 cycles** left on average, based on `predicted_rul` for engines labeled `risk_band = 'warning'`. This average sits within the warning range and indicates these engines are partway toward the critical threshold.",
+    "sql": "SELECT ROUND(AVG(cmapss_fleet_status.predicted_rul), 1) AS avg_predicted_rul\nFROM sentinelops_dev.gold.cmapss_fleet_status\nWHERE cmapss_fleet_status.risk_band = 'warning' AND cmapss_fleet_status.predicted_rul IS NOT NULL",
+    "columns": [
+     "avg_predicted_rul"
+    ],
+    "rows": [
+     [
+      "37.8"
+     ]
+    ],
+    "seconds": 14.2
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000003",
+   "question": "Which five engines have the least predicted remaining life, and what cycle are they at?",
+   "reference_columns": [
+    "unit",
+    "last_cycle",
+    "predicted_rul"
+   ],
+   "reference_rows": [
+    [
+     "34",
+     "203",
+     "6.635345210981352"
+    ],
+    [
+     "35",
+     "198",
+     "8.399291556463226"
+    ],
+    [
+     "81",
+     "213",
+     "10.17710372981359"
+    ],
+    [
+     "68",
+     "187",
+     "10.414534300221842"
+    ],
+    [
+     "76",
+     "205",
+     "11.637951998293257"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "The **five engines with the least predicted remaining life** are shown below, along with their current cycle. All five are in the **critical** range because each has a predicted remaining life of **20 cycles or less**.\n\n- **Engine 34** \u2014 at **cycle 203**, predicted remaining life **6.64** cycles\n- **Engine 35** \u2014 at **cycle 198**, predicted remaining life **8.40** cycles\n- **Engine 81** \u2014 at **cycle 213**, predicted remaining life **10.18** cycles\n- **Engine 68** \u2014 at **cycle 187**, predicted remaining life **10.41** cycles\n- **Engine 76** \u2014 at **cycle 205**, predicted remaining life **11.64** cycles",
+    "sql": "WITH ranked AS (\n  SELECT\n    `unit`,\n    `last_cycle`,\n    `predicted_rul`,\n    RANK() OVER (ORDER BY `predicted_rul` ASC) AS `rnk`\n  FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  WHERE `predicted_rul` IS NOT NULL\n    AND `unit` IS NOT NULL\n)\nSELECT\n  `unit`,\n  `last_cycle`,\n  `predicted_rul`\nFROM ranked\nWHERE `rnk` <= 5\nORDER BY `predicted_rul` ASC, `unit` ASC",
+    "columns": [
+     "unit",
+     "last_cycle",
+     "predicted_rul"
+    ],
+    "rows": [
+     [
+      "34",
+      "203",
+      "6.635345210981352"
+     ],
+     [
+      "35",
+      "198",
+      "8.399291556463226"
+     ],
+     [
+      "81",
+      "213",
+      "10.17710372981359"
+     ],
+     [
+      "68",
+      "187",
+      "10.414534300221842"
+     ],
+     [
+      "76",
+      "205",
+      "11.637951998293257"
+     ]
+    ],
+    "seconds": 18.2
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000004",
+   "question": "List the 5 most at-risk engines with their last observed cycle.",
+   "reference_columns": [
+    "unit",
+    "last_cycle",
+    "predicted_rul"
+   ],
+   "reference_rows": [
+    [
+     "34",
+     "203",
+     "6.635345210981352"
+    ],
+    [
+     "35",
+     "198",
+     "8.399291556463226"
+    ],
+    [
+     "81",
+     "213",
+     "10.17710372981359"
+    ],
+    [
+     "68",
+     "187",
+     "10.414534300221842"
+    ],
+    [
+     "76",
+     "205",
+     "11.637951998293257"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "The **5 most at-risk engines** are all in the **critical** band, with last observed cycles ranging from **187** to **213**.\n\n- **Unit 34** \u2014 last observed cycle **203**, predicted remaining life **6.64** cycles\n- **Unit 35** \u2014 last observed cycle **198**, predicted remaining life **8.40** cycles\n- **Unit 81** \u2014 last observed cycle **213**, predicted remaining life **10.18** cycles\n- **Unit 68** \u2014 last observed cycle **187**, predicted remaining life **10.41** cycles\n- **Unit 76** \u2014 last observed cycle **205**, predicted remaining life **11.64** cycles\n\nAmong these five, **Unit 34** is the most at risk, and all five are projected to have fewer than **12** cycles remaining.",
+    "sql": "WITH `ranked_engines` AS (\n  SELECT\n    `unit`,\n    `last_cycle`,\n    `predicted_rul`,\n    `risk_band`,\n    RANK() OVER (ORDER BY `predicted_rul` ASC, `last_cycle` DESC) AS `risk_rank`\n  FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  WHERE `unit` IS NOT NULL\n    AND `predicted_rul` IS NOT NULL\n    AND `last_cycle` IS NOT NULL\n)\nSELECT\n  `unit`,\n  `last_cycle`,\n  `predicted_rul`,\n  `risk_band`\nFROM `ranked_engines`\nWHERE `risk_rank` <= 5\nORDER BY `predicted_rul` ASC, `last_cycle` DESC, `unit` ASC",
+    "columns": [
+     "unit",
+     "last_cycle",
+     "predicted_rul",
+     "risk_band"
+    ],
+    "rows": [
+     [
+      "34",
+      "203",
+      "6.635345210981352",
+      "critical"
+     ],
+     [
+      "35",
+      "198",
+      "8.399291556463226",
+      "critical"
+     ],
+     [
+      "81",
+      "213",
+      "10.17710372981359",
+      "critical"
+     ],
+     [
+      "68",
+      "187",
+      "10.414534300221842",
+      "critical"
+     ],
+     [
+      "76",
+      "205",
+      "11.637951998293257",
+      "critical"
+     ]
+    ],
+    "seconds": 18.7
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000005",
+   "question": "What is the current model's RMSE on cycles whose true RUL is 125 or less, in the latest snapshot?",
+   "reference_columns": [
+    "rmse"
+   ],
+   "reference_rows": [
+    [
+     "19.174899577687704"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "In the latest snapshot, **model_version 3** has an **RMSE of 19.174899577687704** on cycles where true RUL is **125 or less**. That result was computed at **2026-09-25T07:00:59.172Z** using **5,144 rows**, with **MAE 14.418936356249889** and **bias 5.115111381699773**.",
+    "sql": "SELECT `model_version`, `rows`, `rmse`, `mae`, `bias`, `computed_at`\nFROM `sentinelops_dev`.`gold`.`cmapss_model_performance`\nWHERE `segment` = 'actual_le_125'\n  AND `model_version` = (\n    SELECT MAX(`model_version`)\n    FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  )\n  AND `computed_at` IS NOT NULL\n  AND `rmse` IS NOT NULL\nORDER BY `computed_at` DESC\nLIMIT 1",
+    "columns": [
+     "model_version",
+     "rows",
+     "rmse",
+     "mae",
+     "bias",
+     "computed_at"
+    ],
+    "rows": [
+     [
+      "3",
+      "5144",
+      "19.174899577687704",
+      "14.418936356249889",
+      "5.115111381699773",
+      "2026-09-25T07:00:59.172Z"
+     ]
+    ],
+    "seconds": 14.5
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000006",
+   "question": "How accurate is the champion on cycles with an actual remaining life of at most 125?",
+   "reference_columns": [
+    "rmse"
+   ],
+   "reference_rows": [
+    [
+     "19.174899577687704"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "For champion **model_version 3**, on cycles where actual remaining life is **125 or less**, accuracy is **RMSE 19.17** and **MAE 14.42** across **5,144** scored cycles. Champion **model_version 3** also shows **bias 5.12**, which means predictions were higher than actual remaining life on average in this benchmark segment.",
+    "sql": "SELECT model_version, rows, round(rmse, 2) AS rmse, round(mae, 2) AS mae, round(bias, 2) AS bias, computed_at\nFROM sentinelops_dev.gold.cmapss_model_performance\nWHERE segment = 'actual_le_125'\n  AND model_version = (SELECT max(model_version) FROM sentinelops_dev.gold.cmapss_fleet_status)\nORDER BY computed_at DESC\nLIMIT 1",
+    "columns": [
+     "model_version",
+     "rows",
+     "rmse",
+     "mae",
+     "bias",
+     "computed_at"
+    ],
+    "rows": [
+     [
+      "3",
+      "5144",
+      "19.17",
+      "14.42",
+      "5.12",
+      "2026-09-25T07:00:59.172Z"
+     ]
+    ],
+    "seconds": 16.2
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000007",
+   "question": "How many severe injury reports came from Texas in 2022?",
+   "reference_columns": [
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "1449"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "Texas had **1,449** severe injury reports in **2022**.",
+    "sql": "SELECT COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `state` ILIKE '%TEXAS%'\n  AND `event_year` = 2022;",
+    "columns": [
+     "reports"
+    ],
+    "rows": [
+     [
+      "1449"
+     ]
+    ],
+    "seconds": 14.9
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000008",
+   "question": "Count the 2022 reports for the state of Texas.",
+   "reference_columns": [
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "1449"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "Texas had **1,449** severe injury reports in **2022**.",
+    "sql": "SELECT COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `event_year` = 2022\n  AND `state` ILIKE '%TEXAS%'",
+    "columns": [
+     "reports"
+    ],
+    "rows": [
+     [
+      "1449"
+     ]
+    ],
+    "seconds": 10.9
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0
+   ]
+  },
+  {
+   "id": "d0000000000000000000000000000009",
+   "question": "In reports with an amputation, which body part category comes up most often?",
+   "reference_columns": [
+    "body_part_category",
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "Upper extremities",
+     "26700"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "The most common body part category in reports involving an amputation is **Upper extremities**, with **26,700 reports**. In the visible result, **Upper extremities** is the top category for amputation-related reports.",
+    "sql": "WITH `body_part_counts` AS (\n  SELECT\n    `body_part_category`,\n    COUNT(*) AS `reports`\n  FROM `sentinelops_dev`.`gold`.`osha_injury_facts`\n  WHERE `amputation` > 0\n    AND `body_part_category` IS NOT NULL\n  GROUP BY `body_part_category`\n), `ranked_body_parts` AS (\n  SELECT\n    `body_part_category`,\n    `reports`,\n    RANK() OVER (ORDER BY `reports` DESC) AS `rnk`\n  FROM `body_part_counts`\n)\nSELECT\n  `body_part_category`,\n  `reports`\nFROM `ranked_body_parts`\nWHERE `rnk` <= 1\nORDER BY `reports` DESC, `body_part_category`",
+    "columns": [
+     "body_part_category",
+     "reports"
+    ],
+    "rows": [
+     [
+      "Upper extremities",
+      "26700"
+     ]
+    ],
+    "seconds": 15.3
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1
+   ]
+  },
+  {
+   "id": "d000000000000000000000000000000a",
+   "question": "What body part is most frequently involved when an amputation is reported?",
+   "reference_columns": [
+    "body_part_category",
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "Upper extremities",
+     "26700"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "The most frequently involved body part category in reports where an amputation was reported is **Upper extremities**, with **26,700 reports**. In this result set, **Upper extremities** is the top category for amputation-related severe injury reports.",
+    "sql": "WITH `body_part_counts` AS (\n  SELECT\n    `body_part_category`,\n    COUNT(*) AS `reports`\n  FROM `sentinelops_dev`.`gold`.`osha_injury_facts`\n  WHERE `amputation` > 0\n    AND `body_part_category` IS NOT NULL\n  GROUP BY `body_part_category`\n), `ranked_body_parts` AS (\n  SELECT\n    `body_part_category`,\n    `reports`,\n    RANK() OVER (ORDER BY `reports` DESC) AS `rnk`\n  FROM `body_part_counts`\n)\nSELECT\n  `body_part_category`,\n  `reports`\nFROM `ranked_body_parts`\nWHERE `rnk` <= 1\nORDER BY `reports` DESC, `body_part_category`",
+    "columns": [
+     "body_part_category",
+     "reports"
+    ],
+    "rows": [
+     [
+      "Upper extremities",
+      "26700"
+     ]
+    ],
+    "seconds": 15.9
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1
+   ]
+  },
+  {
+   "id": "d000000000000000000000000000000b",
+   "question": "How many reports involved the loss of an eye in each year from 2020 on?",
+   "reference_columns": [
+    "event_year",
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "2020",
+     "4"
+    ],
+    [
+     "2021",
+     "3"
+    ],
+    [
+     "2022",
+     "3"
+    ],
+    [
+     "2023",
+     "8"
+    ],
+    [
+     "2024",
+     "2"
+    ],
+    [
+     "2025",
+     "4"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "From **2020 onward**, the number of reports involving **loss of an eye** was:\n- **2020:** 4\n- **2021:** 3\n- **2022:** 3\n- **2023:** 8\n- **2024:** 2\n\nAcross the 6 years shown, **2023** was the highest and **2024** the lowest; **2025** had **4** reports, and this year only covers **January to November** in the data.",
+    "sql": "SELECT `event_year`, COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `loss_of_eye` > 0\n  AND `event_year` >= 2020\n  AND `event_year` IS NOT NULL\nGROUP BY `event_year`\nORDER BY `event_year`",
+    "columns": [
+     "event_year",
+     "reports"
+    ],
+    "rows": [
+     [
+      "2020",
+      "4"
+     ],
+     [
+      "2021",
+      "3"
+     ],
+     [
+      "2022",
+      "3"
+     ],
+     [
+      "2023",
+      "8"
+     ],
+     [
+      "2024",
+      "2"
+     ],
+     [
+      "2025",
+      "4"
+     ]
+    ],
+    "seconds": 18.2
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1
+   ]
+  },
+  {
+   "id": "d000000000000000000000000000000c",
+   "question": "Per year since 2020, how many reports had a worker lose an eye?",
+   "reference_columns": [
+    "event_year",
+    "reports"
+   ],
+   "reference_rows": [
+    [
+     "2020",
+     "4"
+    ],
+    [
+     "2021",
+     "3"
+    ],
+    [
+     "2022",
+     "3"
+    ],
+    [
+     "2023",
+     "8"
+    ],
+    [
+     "2024",
+     "2"
+    ],
+    [
+     "2025",
+     "4"
+    ]
+   ],
+   "genie": {
+    "status": "COMPLETED",
+    "text": "Since 2020, the number of severe injury reports involving **loss of an eye** was:\n- **2020:** 4\n- **2021:** 3\n- **2022:** 3\n- **2023:** 8\n- **2024:** 2\n- **2025:** 4\n\nAmong these years, **2023** was the highest with **8** reports, while **2024** was the lowest with **2**.",
+    "sql": "SELECT `event_year`, COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `event_year` IS NOT NULL\n  AND `event_year` >= 2020\n  AND `loss_of_eye` > 0\nGROUP BY `event_year`\nORDER BY `event_year`",
+    "columns": [
+     "event_year",
+     "reports"
+    ],
+    "rows": [
+     [
+      "2020",
+      "4"
+     ],
+     [
+      "2021",
+      "3"
+     ],
+     [
+      "2022",
+      "3"
+     ],
+     [
+      "2023",
+      "8"
+     ],
+     [
+      "2024",
+      "2"
+     ],
+     [
+      "2025",
+      "4"
+     ]
+    ],
+    "seconds": 13.6
+   },
+   "verdict": "match",
+   "matched_columns": [
+    0,
+    1
+   ]
+  }
+ ],
+ "benchmark_run": {
+  "eval_run": {
+   "created_timestamp": 1790465021820,
+   "eval_run_id": "01f1ba014f961dd6b40c0038b6f28a0d",
+   "eval_run_status": "DONE",
+   "last_updated_timestamp": 1790465022742,
+   "num_correct": 12,
+   "num_done": 12,
+   "num_needs_review": 0,
+   "num_questions": 12,
+   "run_by_user": "<developer, redacted>"
+  },
+  "seconds": 155.9,
+  "results": [
+   {
+    "benchmark_question_id": "d0000000000000000000000000000001",
+    "question": "What is the average predicted remaining life of the engines in the warning band?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT AVG(cmapss_fleet_status.predicted_rul) AS avg_predicted_rul\nFROM sentinelops_dev.gold.cmapss_fleet_status\nWHERE cmapss_fleet_status.risk_band = 'warning'\n  AND cmapss_fleet_status.predicted_rul IS NOT NULL",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 336,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 1,
+         "columns": [
+          {
+           "name": "avg_predicted_rul",
+           "position": 0,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          }
+         ]
+        },
+        "total_byte_count": 336,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-a12d-1963-9242-1cb301427d42",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000002",
+    "question": "On average, how many cycles do warning-band engines have left?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT AVG(cmapss_fleet_status.predicted_rul) AS avg_predicted_rul, COUNT(*) AS engines\nFROM sentinelops_dev.gold.cmapss_fleet_status\nWHERE cmapss_fleet_status.risk_band = 'warning' AND cmapss_fleet_status.predicted_rul IS NOT NULL",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 488,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 2,
+         "columns": [
+          {
+           "name": "avg_predicted_rul",
+           "position": 0,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "engines",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 488,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-9a33-187b-9c28-58f331e1583e",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000003",
+    "question": "Which five engines have the least predicted remaining life, and what cycle are they at?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "WITH ranked AS (\n  SELECT\n    `unit`,\n    `last_cycle`,\n    `predicted_rul`,\n    RANK() OVER (ORDER BY `predicted_rul` ASC) AS `rnk`\n  FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  WHERE `unit` IS NOT NULL\n    AND `predicted_rul` IS NOT NULL\n    AND `last_cycle` IS NOT NULL\n)\nSELECT\n  `unit`,\n  `last_cycle`,\n  `predicted_rul`\nFROM ranked\nWHERE `rnk` <= 5\nORDER BY `rnk`, `predicted_rul`, `unit`",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 1160,
+          "chunk_index": 0,
+          "row_count": 5,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 3,
+         "columns": [
+          {
+           "name": "unit",
+           "position": 0,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "last_cycle",
+           "position": 1,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "predicted_rul",
+           "position": 2,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          }
+         ]
+        },
+        "total_byte_count": 1160,
+        "total_chunk_count": 1,
+        "total_row_count": 5,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 5,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-950d-18b2-8a82-880995b353cc",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000004",
+    "question": "List the 5 most at-risk engines with their last observed cycle.",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "WITH `ranked_engines` AS (\n  SELECT\n    `unit`,\n    `last_cycle`,\n    `predicted_rul`,\n    `risk_band`,\n    RANK() OVER (ORDER BY `predicted_rul` ASC, `last_cycle` DESC) AS `risk_rank`\n  FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  WHERE `predicted_rul` IS NOT NULL\n    AND `last_cycle` IS NOT NULL\n)\nSELECT\n  `unit`,\n  `last_cycle`,\n  `predicted_rul`,\n  `risk_band`\nFROM `ranked_engines`\nWHERE `risk_rank` <= 5\nORDER BY `predicted_rul` ASC, `last_cycle` DESC, `unit` ASC",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 1560,
+          "chunk_index": 0,
+          "row_count": 5,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 4,
+         "columns": [
+          {
+           "name": "unit",
+           "position": 0,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "last_cycle",
+           "position": 1,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "predicted_rul",
+           "position": 2,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "risk_band",
+           "position": 3,
+           "type_name": "STRING",
+           "type_text": "STRING"
+          }
+         ]
+        },
+        "total_byte_count": 1560,
+        "total_chunk_count": 1,
+        "total_row_count": 5,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 5,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-89d6-17dd-91f0-f723c48e5eb3",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000005",
+    "question": "What is the current model's RMSE on cycles whose true RUL is 125 or less, in the latest snapshot?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT\n  `model_version`,\n  `rows`,\n  `rmse`,\n  `mae`,\n  `bias`,\n  `computed_at`\nFROM `sentinelops_dev`.`gold`.`cmapss_model_performance`\nWHERE `segment` = 'actual_le_125'\n  AND `model_version` = (\n    SELECT MAX(`model_version`)\n    FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  )\nORDER BY `computed_at` DESC\nLIMIT 1",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 1496,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 6,
+         "columns": [
+          {
+           "name": "model_version",
+           "position": 0,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          },
+          {
+           "name": "rows",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          },
+          {
+           "name": "rmse",
+           "position": 2,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "mae",
+           "position": 3,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "bias",
+           "position": 4,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "computed_at",
+           "position": 5,
+           "type_name": "TIMESTAMP",
+           "type_text": "TIMESTAMP"
+          }
+         ]
+        },
+        "total_byte_count": 1496,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-80e9-11be-921f-29641bbb4f5e",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000006",
+    "question": "How accurate is the champion on cycles with an actual remaining life of at most 125?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT\n  `model_version`,\n  `rows`,\n  `rmse`,\n  `mae`,\n  `nasa_score`,\n  `bias`,\n  `computed_at`\nFROM `sentinelops_dev`.`gold`.`cmapss_model_performance`\nWHERE `segment` = 'actual_le_125'\n  AND `model_version` = (\n    SELECT MAX(`model_version`)\n    FROM `sentinelops_dev`.`gold`.`cmapss_fleet_status`\n  )\nORDER BY `computed_at` DESC\nLIMIT 1",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 1768,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 7,
+         "columns": [
+          {
+           "name": "model_version",
+           "position": 0,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          },
+          {
+           "name": "rows",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          },
+          {
+           "name": "rmse",
+           "position": 2,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "mae",
+           "position": 3,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "nasa_score",
+           "position": 4,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "bias",
+           "position": 5,
+           "type_name": "DOUBLE",
+           "type_text": "DOUBLE"
+          },
+          {
+           "name": "computed_at",
+           "position": 6,
+           "type_name": "TIMESTAMP",
+           "type_text": "TIMESTAMP"
+          }
+         ]
+        },
+        "total_byte_count": 1768,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-7ad1-13f8-ad36-e1e85832c5ba",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000007",
+    "question": "How many severe injury reports came from Texas in 2022?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `state` ILIKE '%TEXAS%'\n  AND `event_year` = 2022;",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 328,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 1,
+         "columns": [
+          {
+           "name": "reports",
+           "position": 0,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 328,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-739d-1742-a201-b8f37e2d98b4",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000008",
+    "question": "Count the 2022 reports for the state of Texas.",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `event_year` = 2022\n  AND `state` IS NOT NULL\n  AND `state` ILIKE '%TEXAS%'",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 328,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 1,
+         "columns": [
+          {
+           "name": "reports",
+           "position": 0,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 328,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-6d47-1cd1-8ea6-c448d1ed3d22",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d0000000000000000000000000000009",
+    "question": "In reports with an amputation, which body part category comes up most often?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "WITH `body_part_counts` AS (\n  SELECT\n    `body_part_category`,\n    COUNT(*) AS `reports`\n  FROM `sentinelops_dev`.`gold`.`osha_injury_facts`\n  WHERE `amputation` > 0\n    AND `body_part_category` IS NOT NULL\n  GROUP BY `body_part_category`\n), `ranked_body_parts` AS (\n  SELECT\n    `body_part_category`,\n    `reports`,\n    RANK() OVER (ORDER BY `reports` DESC) AS `rnk`\n  FROM `body_part_counts`\n)\nSELECT\n  `body_part_category`,\n  `reports`\nFROM `ranked_body_parts`\nWHERE `rnk` <= 1\nORDER BY `reports` DESC, `body_part_category`",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 664,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 2,
+         "columns": [
+          {
+           "name": "body_part_category",
+           "position": 0,
+           "type_name": "STRING",
+           "type_text": "STRING"
+          },
+          {
+           "name": "reports",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 664,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-6718-1d3f-8207-b9d53ac714b4",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d000000000000000000000000000000a",
+    "question": "What body part is most frequently involved when an amputation is reported?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "WITH `body_part_counts` AS (\n  SELECT\n    `body_part_category`,\n    COUNT(*) AS `reports`\n  FROM `sentinelops_dev`.`gold`.`osha_injury_facts`\n  WHERE `amputation` > 0\n    AND `body_part_category` IS NOT NULL\n  GROUP BY `body_part_category`\n), `ranked` AS (\n  SELECT\n    `body_part_category`,\n    `reports`,\n    RANK() OVER (ORDER BY `reports` DESC) AS `rnk`\n  FROM `body_part_counts`\n)\nSELECT\n  `body_part_category`,\n  `reports`\nFROM `ranked`\nWHERE `rnk` <= 1\nORDER BY `reports` DESC, `body_part_category`",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 664,
+          "chunk_index": 0,
+          "row_count": 1,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 2,
+         "columns": [
+          {
+           "name": "body_part_category",
+           "position": 0,
+           "type_name": "STRING",
+           "type_text": "STRING"
+          },
+          {
+           "name": "reports",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 664,
+        "total_chunk_count": 1,
+        "total_row_count": 1,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-6162-1911-a79e-53b23e44c553",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d000000000000000000000000000000b",
+    "question": "How many reports involved the loss of an eye in each year from 2020 on?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT `event_year`, COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `loss_of_eye` > 0\n  AND `event_year` IS NOT NULL\n  AND `event_year` >= 2020\nGROUP BY `event_year`\nORDER BY `event_year`",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 656,
+          "chunk_index": 0,
+          "row_count": 6,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 2,
+         "columns": [
+          {
+           "name": "event_year",
+           "position": 0,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "reports",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 656,
+        "total_chunk_count": 1,
+        "total_row_count": 6,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 6,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-5a50-158a-82ea-dd00f42268b9",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "benchmark_question_id": "d000000000000000000000000000000c",
+    "question": "Per year since 2020, how many reports had a worker lose an eye?",
+    "assessment": "GOOD",
+    "assessment_reasons": [],
+    "actual_response": [
+     {
+      "response": "SELECT\n  `event_year`,\n  COUNT(*) AS `reports`\nFROM `sentinelops_dev`.`gold`.`osha_injury_facts`\nWHERE `loss_of_eye` > 0\n  AND `event_year` >= 2020\n  AND `event_year` IS NOT NULL\nGROUP BY `event_year`\nORDER BY `event_year`",
+      "response_type": "SQL",
+      "sql_execution_result": {
+       "manifest": {
+        "chunks": [
+         {
+          "byte_count": 656,
+          "chunk_index": 0,
+          "row_count": 6,
+          "row_offset": 0
+         }
+        ],
+        "schema": {
+         "column_count": 2,
+         "columns": [
+          {
+           "name": "event_year",
+           "position": 0,
+           "type_name": "INT",
+           "type_text": "INT"
+          },
+          {
+           "name": "reports",
+           "position": 1,
+           "type_name": "LONG",
+           "type_text": "BIGINT"
+          }
+         ]
+        },
+        "total_byte_count": 656,
+        "total_chunk_count": 1,
+        "total_row_count": 6,
+        "truncated": false
+       },
+       "result": {
+        "chunk_index": 0,
+        "row_count": 6,
+        "row_offset": 0
+       },
+       "statement_id": "01f1ba01-53cc-1bed-8a92-00a45f283433",
+       "status": {
+        "state": "SUCCEEDED"
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "prose_review": {
+  "numbers_and_rankings": "all 12 summaries agree with their SQL results",
+  "bias_direction": "d...06 says predictions run higher than actual (bias +5.12): correct (bias = predicted - actual)",
+  "minor": [
+   "d...01 quotes the average unrounded (37.77149967710259)",
+   "d...0c lists 2025 without noting it covers January-November only, which the space's instructions ask for; its twin d...0b says so"
+  ]
+ },
+ "cost": {
+  "warehouse": "the reference SQL woke the 2X-Small warehouse at ~23:18 UTC; questions, the benchmark deploy and the eval run kept it warm; the last query ended 23:26 and it was STOPPED at 23:32:27 (5-minute auto-stop): ~14 billed minutes, ~0.93 DBU, ~CAD 0.9 (estimate; system.billing confirms later)",
+  "genie_llm": "free for users through January 31, 2027"
+ },
+ "summary_line": "Held out: 12/12 correct on SQL results. Benchmarks (chat mode): 12/12 GOOD, none needing review."
+}

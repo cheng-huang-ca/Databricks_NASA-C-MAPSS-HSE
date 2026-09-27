@@ -34,7 +34,10 @@ ZIP = re.compile(r"\b([A-Z]{2}),?\s+\d{5}(?:-\d{4})?\b")
 # Masking v2 (landing osha_sir/v2): narratives also use shortened employer names (the first words
 # of a longer legal name, a trading name after "dba", or one distinctive word). Eval v2 found the
 # assistant repeating one that v1 masking missed.
-MASKING_VERSION = "v2"
+# Masking v3 (landing osha_sir/v3, a delta of the reports it changes): a review found fragments of
+# a report's own employer name left right next to [EMPLOYER], such as initials ("G&H [EMPLOYER]")
+# or a name word no variant covered. Only fragments of that report's employer are absorbed.
+MASKING_VERSION = "v3"
 DBA = re.compile(r"\s+(?:d\s*/\s*b\s*/\s*a|d\.?b\.?a\.?|doing business as)\s+", re.IGNORECASE)
 NAME_WORD = re.compile(r"[A-Za-z][A-Za-z'&-]+")
 US_STATES = frozenset(
@@ -81,6 +84,46 @@ def name_variants(employer: str, common: frozenset, single_min: int = 4) -> list
     return sorted(dict.fromkeys(variants), key=lambda v: -len(v[0]))
 
 
+INITIALS = re.compile(r"(?:[A-Z]{1,3}\s*&\s*)+[A-Z]{1,3}|(?:[A-Z]\.){2,4}|[A-Z]{2,5}")
+FRAGMENT = r"(?:[A-Z]{1,3}\s*&\s*)+[A-Z]{1,3}|(?:[A-Z]\.){2,4}|[A-Za-z0-9][A-Za-z0-9'&-]*"
+
+
+def own_fragment(token: str, employer: str) -> bool:
+    """Initials of consecutive words of this employer's name ("G&H", "J.B."), or a capitalized word
+    of the name that isn't a business word or a state."""
+    parts = re.findall(r"[A-Za-z0-9]+", employer)
+    if INITIALS.fullmatch(token):
+        letters = re.sub(r"[^A-Z]", "", token)
+        if len(letters) >= 2 and letters in "".join(p[0].upper() for p in parts):
+            return True
+    word = token.lower()
+    return (token[:1].isupper() and word in {p.lower() for p in parts}
+            and word not in BUSINESS_WORDS and word not in US_STATES)
+
+
+BEFORE_MASK = re.compile(r"(?<![\w&.])(" + FRAGMENT + r")\s+\[EMPLOYER\]")
+AFTER_MASK = re.compile(r"\[EMPLOYER\]\s+(" + FRAGMENT + r")(?![\w&])")
+
+
+def absorb_fragments(text: str, employer: str) -> tuple[str, int]:
+    """Merge own-employer fragments directly before or after [EMPLOYER] into the mask (masking v3).
+    Repeats until nothing changes, so "G&H Tool [EMPLOYER]" loses both fragments."""
+    absorbed = 0
+
+    def merge(match):
+        nonlocal absorbed
+        if own_fragment(match.group(1), employer):
+            absorbed += 1
+            return "[EMPLOYER]"
+        return match.group(0)
+
+    while True:
+        start = absorbed
+        text = AFTER_MASK.sub(merge, BEFORE_MASK.sub(merge, text))
+        if absorbed == start:
+            return text, absorbed
+
+
 def download(destination: Path) -> Path:
     destination.mkdir(parents=True, exist_ok=True)
     archive = destination / ARCHIVE
@@ -119,11 +162,12 @@ def _literal(text: str, value: str, token: str, proper_noun_only: bool = False, 
 
 
 def mask(narrative: str, employer: str, addresses: list[str], common: frozenset | None = None,
-         single_min: int = 4, detail: bool = False):
+         single_min: int = 4, detail: bool = False, fragments: bool = False):
     """Mask the report's employer and addresses, street addresses and state+ZIP; normalize whitespace.
 
     Without `common` this is masking v1 (full and suffix-free employer names), which produced
-    landing osha_sir/v1. With `common` (see common_words) it also masks shortened names (v2).
+    landing osha_sir/v1. With `common` (see common_words) it also masks shortened names (v2), and
+    with `fragments` it also absorbs own-employer fragments next to the mask (v3).
     With `detail`, also returns counts of the kinds of matches, for measuring over-masking.
     """
     text, total, matched = " ".join(narrative.split()), 0, []
@@ -133,6 +177,9 @@ def mask(narrative: str, employer: str, addresses: list[str], common: frozenset 
         names += [(v, proper, single_min if " " not in v else 5) for v, proper in name_variants(employer, common, single_min)]
     for value, proper, min_length in names:
         text, count = _literal(text, value, "[EMPLOYER]", proper, min_length, matched)
+        total += count
+    if fragments:
+        text, count = absorb_fragments(text, employer)
         total += count
     for address in addresses:
         text, count = _literal(text, address, "[ADDRESS]")
@@ -165,13 +212,17 @@ def _blank_to_none(values: pd.Series) -> pd.Series:
 COMMON_MIN_DOCUMENTS = 50  # chosen on the full corpus: v1 -> v2 capitalized leaks 37 -> 0 (first two name words)
 
 
-def minimize(reports: pd.DataFrame, common_min_documents: int = COMMON_MIN_DOCUMENTS) -> tuple[pd.DataFrame, dict]:
-    """Keep only fields the assistant and analytics need; one row per unique UPA."""
+def minimize(reports: pd.DataFrame, common_min_documents: int = COMMON_MIN_DOCUMENTS,
+             masking_version: str = MASKING_VERSION) -> tuple[pd.DataFrame, dict]:
+    """Keep only fields the assistant and analytics need; one row per unique UPA.
+    masking_version "v2" reproduces landing osha_sir/v2; "v3" also absorbs own-employer fragments."""
+    if masking_version not in ("v2", "v3"):
+        raise ValueError("minimize() produces masking v2 or v3")
     if reports.UPA.duplicated().any() or not reports.UPA.str.fullmatch(r"\d+").all():
         raise ValueError("UPA must be a unique numeric report key")
     dates = pd.to_datetime(reports.EventDate, format="%m/%d/%Y", errors="raise")
     common = common_words(reports["Final Narrative"], common_min_documents)
-    masked = [mask(n, e, [a1, a2], common=common) for n, e, a1, a2 in
+    masked = [mask(n, e, [a1, a2], common=common, fragments=masking_version == "v3") for n, e, a1, a2 in
               zip(reports["Final Narrative"], reports.Employer, reports.Address1, reports.Address2)]
     out = pd.DataFrame({
         "report_id": reports.UPA.astype("int64"),
@@ -191,23 +242,20 @@ def minimize(reports: pd.DataFrame, common_min_documents: int = COMMON_MIN_DOCUM
         out[f"{name}_title"] = _blank_to_none(reports[TITLES[column]])
     stats = {"rows": len(out), "masked_narratives": sum(1 for _, n in masked if n),
              "mask_replacements": sum(n for _, n in masked), "dropped_columns": DROPPED,
-             "masking_version": MASKING_VERSION, "common_word_min_documents": common_min_documents}
+             "masking_version": masking_version, "common_word_min_documents": common_min_documents}
     return out, stats
 
 
-def prepare(source: Path, destination: Path) -> dict:
-    """Write immutable, per-year minimized JSONL files plus a SHA-256 manifest."""
-    reports, stats = minimize(read_reports(download(source)))
-    files = {}
-    for year, part in reports.groupby(reports.event_month.str[:4], sort=True):
-        lines = (json.dumps(record, sort_keys=True, ensure_ascii=False) for record in part.to_dict("records"))
-        files[f"reports/sir_{year}.jsonl"] = ("\n".join(lines) + "\n").encode("utf-8")
-    manifest = {"source": URL, "archive_sha256": SHA256, "member": MEMBER, "attribution": ATTRIBUTION,
-                "license": "U.S. federal government work (public domain); attribution requested; no endorsement implied",
-                "coverage": "Severe injury reports (hospitalization, amputation, loss of an eye) with event dates "
-                            "2015-01-01 to 2025-11-30 as published; OSHA's page says State Plan reports are "
-                            "excluded from its dashboard dataset. FederalState flag kept as published.",
-                **stats, "files": {}}
+def _manifest(stats: dict) -> dict:
+    return {"source": URL, "archive_sha256": SHA256, "member": MEMBER, "attribution": ATTRIBUTION,
+            "license": "U.S. federal government work (public domain); attribution requested; no endorsement implied",
+            "coverage": "Severe injury reports (hospitalization, amputation, loss of an eye) with event dates "
+                        "2015-01-01 to 2025-11-30 as published; OSHA's page says State Plan reports are "
+                        "excluded from its dashboard dataset. FederalState flag kept as published.",
+            **stats, "files": {}}
+
+
+def _write_immutable(destination: Path, files: dict, manifest: dict) -> dict:
     for name, payload in files.items():
         path = destination / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,11 +263,40 @@ def prepare(source: Path, destination: Path) -> dict:
             raise ValueError(f"Refusing to overwrite immutable landing file: {name}")
         path.write_bytes(payload)
         manifest["files"][name] = hashlib.sha256(payload).hexdigest()
-    (destination / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (destination / "manifest.json").write_bytes((json.dumps(manifest, indent=2) + "\n").encode())
     return manifest
 
 
+def _jsonl(records) -> bytes:
+    return ("\n".join(json.dumps(r, sort_keys=True, ensure_ascii=False) for r in records) + "\n").encode("utf-8")
+
+
+def prepare_delta(source: Path, previous: Path, destination: Path, masking_version: str = MASKING_VERSION) -> dict:
+    """A later masking version as a delta: only the reports whose minimized record differs from the
+    previous landing version (complete snapshot), in one file. Silver keeps each report's latest
+    landed copy, so the delta supersedes exactly those reports."""
+    reports, stats = minimize(read_reports(download(source)), masking_version=masking_version)
+    before = {r["report_id"]: r for f in sorted((previous / "reports").glob("*.jsonl"))
+              for r in map(json.loads, f.read_text(encoding="utf-8").splitlines())}
+    records = reports.to_dict("records")
+    if {r["report_id"] for r in records} != set(before):
+        raise ValueError("The previous landing version covers different reports")
+    changed = [r for r in records if r != before[r["report_id"]]]
+    if any({k for k in r if r[k] != before[r["report_id"]][k]} != {"narrative"} for r in changed):
+        raise ValueError("A later masking version may only change narratives")
+    stats = {**stats, "rows": len(changed), "delta_of": previous.name, "snapshot_rows": len(records)}
+    return _write_immutable(destination, {"reports/changed.jsonl": _jsonl(changed)}, _manifest(stats))
+
+
+def prepare(source: Path, destination: Path, masking_version: str = "v2") -> dict:
+    """Write immutable, per-year minimized JSONL files plus a SHA-256 manifest (a complete snapshot)."""
+    reports, stats = minimize(read_reports(download(source)), masking_version=masking_version)
+    files = {f"reports/sir_{year}.jsonl": _jsonl(part.to_dict("records"))
+             for year, part in reports.groupby(reports.event_month.str[:4], sort=True)}
+    return _write_immutable(destination, files, _manifest(stats))
+
+
 if __name__ == "__main__":
-    # osha_v1 (masking v1) is immutable and already landed; masking v2 writes a new version.
-    print(json.dumps({k: v for k, v in prepare(Path("data/osha"), Path("data/landing/osha_v2")).items()
-                      if k != "files"}, indent=2))
+    # osha_v1 and osha_v2 are immutable and already landed; masking v3 lands as a delta of v2.
+    print(json.dumps({k: v for k, v in prepare_delta(Path("data/osha"), Path("data/landing/osha_v2"),
+                                                     Path("data/landing/osha_v3")).items() if k != "files"}, indent=2))
